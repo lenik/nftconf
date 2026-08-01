@@ -1,0 +1,19 @@
+# Generated reference for the docker lab (nftconf convert).
+# Regenerate inside gw:
+#   python3 -m nftconf_app convert /run/nftconf/nftconf.conf -o /opt/nftconf/demo/nftables.d/nftconf.nft
+
+# -------------------------------------------------------------
+# Lab addresses (see demo/docker-compose.yml)
+#   ext VIP:  10.66.10.2
+#   app VIP:  10.66.20.10
+#   mgmt:     10.66.30.2
+# -------------------------------------------------------------
+
+define ext_ip = 10.66.10.2
+define app_ip = 10.66.20.10
+define mgmt_ip = 10.66.30.2
+define nat_ports = { 8080, 8443 }
+define ext_wl_ports = { 2222, 9090 }
+define mgmt_wl_ports = { 22, 9100 }
+
+# Live rules are applied by `nftconf daemon` (owned comments), not this file.

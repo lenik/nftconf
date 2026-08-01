@@ -1,0 +1,109 @@
+# nftconf lab: NAT / whitelist / daemon reload / pidfile / multi-NIC context
+#
+#   cd demo && docker compose up -d --build
+#   docker compose exec client /demo/scripts/smoke-test.sh
+#   docker compose exec mgmt-client /demo/scripts/smoke-test.sh mgmt
+#   docker compose exec gw /opt/nftconf/demo/scripts/smoke-test.sh daemon
+#   docker compose exec gw /opt/nftconf/demo/scripts/smoke-test.sh pidfile
+#
+# Topology:
+#   client ---- ext (10.66.10.0/24) ---- gw ---- int (10.66.20.0/24) ---- app
+#   mgmt-client ---- mgmt (10.66.30.0/24) ---- gw
+
+name: nftconf-demo
+
+networks:
+  ext:
+    ipam:
+      config:
+        - subnet: 10.66.10.0/24
+  int:
+    ipam:
+      config:
+        - subnet: 10.66.20.0/24
+  mgmt:
+    ipam:
+      config:
+        - subnet: 10.66.30.0/24
+
+x-lab-image: &lab-image
+  build:
+    context: ..
+    dockerfile: demo/Dockerfile
+  image: nftconf-demo:local
+
+services:
+  gw:
+    <<: *lab-image
+    hostname: gw
+    # nftables + sysctl inside the netns; privileged avoids Docker filtering.
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv4.conf.all.forwarding=1
+    volumes:
+      - ..:/opt/nftconf
+    working_dir: /opt/nftconf/demo
+    command: ["/opt/nftconf/demo/scripts/entrypoint.sh"]
+    networks:
+      ext:
+        ipv4_address: 10.66.10.2
+      int:
+        ipv4_address: 10.66.20.2
+      mgmt:
+        ipv4_address: 10.66.30.2
+    healthcheck:
+      test: ["CMD", "test", "-f", "/run/nftconf.pid"]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+      start_period: 5s
+
+  app:
+    <<: *lab-image
+    hostname: app
+    command:
+      - bash
+      - -c
+      - |
+        mkdir -p /srv
+        printf 'ok-app\n' >/srv/index.html
+        python3 -m http.server 8080 --directory /srv &
+        python3 -m http.server 8443 --directory /srv &
+        python3 -m http.server 9100 --directory /srv &
+        wait
+    networks:
+      int:
+        ipv4_address: 10.66.20.10
+
+  client:
+    <<: *lab-image
+    hostname: client
+    volumes:
+      - ./scripts:/demo/scripts:ro
+    working_dir: /demo
+    command: ["sleep", "infinity"]
+    networks:
+      ext:
+        ipv4_address: 10.66.10.10
+    depends_on:
+      gw:
+        condition: service_healthy
+      app:
+        condition: service_started
+
+  mgmt-client:
+    <<: *lab-image
+    hostname: mgmt-client
+    volumes:
+      - ./scripts:/demo/scripts:ro
+    command: ["sleep", "infinity"]
+    networks:
+      mgmt:
+        ipv4_address: 10.66.30.10
+    depends_on:
+      gw:
+        condition: service_healthy
