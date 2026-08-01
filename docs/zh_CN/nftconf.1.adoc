@@ -1,0 +1,126 @@
+= nftconf(1)
+Lenik <nftconf@bodz.net>
+v{project-version}, {project-year}
+:doctype: manpage
+:manmanual: 用户命令
+:mansource: nftconf
+:man-linkstyle: blue R <>
+:nofooter:
+
+== 名称
+
+nftconf - 声明式 nftables 配置与实时对账
+
+== 语法
+
+*nftconf* [_全局选项_]... _命令_ [_选项_]... [_文件_]...
+
+== 描述
+
+*nftconf* 读取简洁的声明式配置，并与运行中的 *nftables*(8) 规则集对账。
+每条逻辑规则带有所有权注释，便于后续 *load*、*unload*、*daemon* 只增删属于该配置文件的规则。
+
+NAT 作用在 prerouting/output/postrouting，*不会* 自动开放 *INPUT*。
+需要本机投递的端口须显式 *whitelist*/*accept*（可选 *shield on*）。
+
+== 命令
+
+*load* _文件_::
+  将 _文件_ 与活动规则集对账。
+
+*unload* _文件_::
+  删除由 _文件_ 拥有的活动规则。
+
+*status* _文件_::
+  显示期望与活动规则之间的差异。
+
+*check* / *show* _文件_::
+  解析并打印规则（不应用）。
+
+*daemon* _文件_::
+  监视 _文件_（及 include），变更时重新加载。
+  默认使用 pidfile */run/nftconf.pid*，第二实例会拒绝启动。
+
+*stop*::
+  通过 pidfile（*--pid*）停止守护进程。
+
+*convert* _文件_...::
+  写出汇总的 *nftables.d/\*.nft*。
+
+*help*::
+  显示用法。
+
+== 全局选项
+
+*-v, --verbose*::
+  调试日志（可重复）。
+
+*-q, --quiet*::
+  仅错误。
+
+*-h, --help*::
+  显示帮助。
+
+*--version*::
+  输出版本并退出。
+
+== 冲突策略
+
+适用于 *load*、*unload*、*daemon*、*convert*：
+
+（默认）::
+  与现有 nft 设置冲突则中止。
+
+*-f, --force*::
+  强制覆盖（load）或删除（unload）。
+
+*-n, --no-clobber*::
+  跳过冲突变更。
+
+*--dry-run*::
+  只显示动作，不应用。
+
+== 配置语言（摘要）
+
+上下文：*table*、*interface*、*address*、*dest address* / *dest interface*、
+*priority*、*shield on|off*、*include*。
+
+动作：*nat* / *dnat* / *snat* / *masquerade* / *redirect*，以及
+*whitelist* / *accept* / *allow* / *drop* / *reject*。
+
+详见 *guide.md* 与 `info nftconf`。
+
+== 文件
+
+*/run/nftconf.pid*::
+  默认守护进程 pidfile。
+
+*nftables.d/\*.nft*::
+  *convert* 默认输出目录。
+
+== 退出状态
+
+*0*:: 成功。
+
+*1*:: 配置/冲突/运行时错误。
+
+*2*:: 用法错误。
+
+== 参见
+
+*nft*(8)、*nftables*(8)、*guide.md*、Texinfo 手册（*info nftconf*）、
+以及 Docker 演示 *demo/README.md*。
+
+== 缺陷报告
+
+请报告至：<{project-email}>
+
+== 作者
+
+由 {project-author} <{project-email}> 编写。
+
+== 版权
+
+Copyright \(C) {project-year} {project-author}.
+许可证 AGPL-3.0-or-later。
+本项目反对 AI 剥削与 AI 霸权，反对无脑 MIT 式许可证和政治愚蠢的 BSD 式许可证。

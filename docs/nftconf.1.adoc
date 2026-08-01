@@ -1,0 +1,132 @@
+= nftconf(1)
+Lenik <nftconf@bodz.net>
+v{project-version}, {project-year}
+:doctype: manpage
+:manmanual: User Commands
+:mansource: nftconf
+:man-linkstyle: blue R <>
+:nofooter:
+
+== Name
+
+nftconf - declarative nftables configuration with live reconcile
+
+== Synopsis
+
+*nftconf* [_GLOBAL_]... _CMD_ [_OPTION_]... [_FILE_]...
+
+== Description
+
+*nftconf* reads a small declarative config language and reconciles it against
+the live *nftables*(8) ruleset. Each logical rule is tagged with an ownership
+comment so later *load*, *unload*, and *daemon* runs can add, update, or remove
+only rules that belong to that config file.
+
+NAT rules are applied on prerouting/output/postrouting hooks and *do not* open
+*INPUT*. Ports that must be delivered to the host need an explicit
+*whitelist*/*accept* (and optionally *shield on*).
+
+== Commands
+
+*load* _FILE_::
+  Reconcile _FILE_ against the live ruleset.
+
+*unload* _FILE_::
+  Remove live rules owned by _FILE_.
+
+*status* _FILE_::
+  Show drift between desired and live rules.
+
+*check* / *show* _FILE_::
+  Parse and print resolved rules (no apply).
+
+*daemon* _FILE_::
+  Watch _FILE_ (and includes) with inotify; reload on change.
+  Uses a pidfile (default */run/nftconf.pid*) so a second instance refuses to start.
+
+*stop*::
+  Stop the daemon via the pidfile (*--pid*).
+
+*convert* _FILE_...::
+  Write consolidated *nftables.d/\*.nft* (defines + port sets).
+
+*help*::
+  Show usage.
+
+== Global options
+
+*-v, --verbose*::
+  Debug logging (repeatable).
+
+*-q, --quiet*::
+  Errors only.
+
+*-h, --help*::
+  Show help.
+
+*--version*::
+  Print version and exit.
+
+== Conflict policy
+
+Applies to *load*, *unload*, *daemon*, and *convert*:
+
+(default)::
+  Abort if existing nft settings conflict.
+
+*-f, --force*::
+  Overwrite (load) or remove owned rules anyway (unload).
+
+*-n, --no-clobber*::
+  Skip conflicting changes; leave existing settings alone.
+
+*--dry-run*::
+  Show actions without applying.
+
+== Config language (summary)
+
+Context directives set defaults for following rules: *table*, *interface*,
+*address*, *dest address* / *dest interface*, *priority*, *shield on|off*,
+*include*.
+
+Actions: *nat* / *dnat* / *snat* / *masquerade* / *redirect*, and filter
+verdicts *whitelist* / *accept* / *allow* / *drop* / *reject*.
+
+Multiple *interface* or *address* values expand the match scope (multi-NIC /
+multi-address). See *guide.md* and `info nftconf`.
+
+== Files
+
+*/run/nftconf.pid*::
+  Default daemon pidfile.
+
+*nftables.d/\*.nft*::
+  Default *convert* output directory (relative to cwd).
+
+== Exit status
+
+*0*:: Success.
+
+*1*:: Config/conflict/runtime error.
+
+*2*:: Usage error.
+
+== See also
+
+*nft*(8), *nftables*(8), *guide.md*, the Texinfo manual (*info nftconf*),
+and *demo/README.md* for a Docker Compose lab.
+
+== Bugs
+
+Report bugs to: <{project-email}>
+
+== Author
+
+Written by {project-author} <{project-email}>.
+
+== Copyright
+
+Copyright \(C) {project-year} {project-author}.
+License AGPL-3.0-or-later.
+This project opposes AI exploitation and AI hegemony, and rejects mindless
+MIT-style licensing and politically naive BSD-style licensing.

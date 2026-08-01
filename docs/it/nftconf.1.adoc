@@ -1,0 +1,127 @@
+= nftconf(1)
+Lenik <nftconf@bodz.net>
+v{project-version}, {project-year}
+:doctype: manpage
+:manmanual: Comandi utente
+:mansource: nftconf
+:man-linkstyle: blue R <>
+:nofooter:
+
+== Nome
+
+nftconf - configurazione nftables dichiarativa con riconciliazione live
+
+== Sintassi
+
+*nftconf* [_GLOBAL_]... _CMD_ [_OPTION_]... [_FILE_]...
+
+== Descrizione
+
+*nftconf* legge un piccolo linguaggio dichiarativo e lo riconcilia con il
+ruleset *nftables*(8) attivo. Ogni regola logica ha un commento di proprietà.
+
+Il NAT agisce su prerouting/output/postrouting e *non* apre *INPUT*.
+Le porte consegnate all'host richiedono *whitelist*/*accept* esplicito.
+
+== Comandi
+
+*load* _FILE_::
+  Reconcile _FILE_ against the live ruleset.
+
+*unload* _FILE_::
+  Remove live rules owned by _FILE_.
+
+*status* _FILE_::
+  Show drift between desired and live rules.
+
+*check* / *show* _FILE_::
+  Parse and print resolved rules (no apply).
+
+*daemon* _FILE_::
+  Watch _FILE_ (and includes); reload on change.
+  Default pidfile */run/nftconf.pid*; a second instance refuses to start.
+
+*stop*::
+  Stop the daemon via the pidfile (*--pid*).
+
+*convert* _FILE_...::
+  Write consolidated *nftables.d/\*.nft*.
+
+*help*::
+  Show usage.
+
+== Opzioni globali
+
+*-v, --verbose*::
+  Debug logging (repeatable).
+
+*-q, --quiet*::
+  Errors only.
+
+*-h, --help*::
+  Show help.
+
+*--version*::
+  Print version and exit.
+
+== Politica di conflitto
+
+(default)::
+  Abort if existing nft settings conflict.
+
+*-f, --force*::
+  Overwrite (load) or remove owned rules anyway (unload).
+
+*-n, --no-clobber*::
+  Skip conflicting changes.
+
+*--dry-run*::
+  Show actions without applying.
+
+== Linguaggio di config (riepilogo)
+
+Contexts: *table*, *interface*, *address*, *dest address* / *dest interface*,
+*priority*, *shield on|off*, *include*.
+
+Actions: *nat* / *dnat* / *snat* / *masquerade* / *redirect*, and
+*whitelist* / *accept* / *allow* / *drop* / *reject*.
+
+See *guide.md* and `info nftconf`.
+
+== File
+
+*/run/nftconf.pid*::
+  Default daemon pidfile.
+
+*nftables.d/\*.nft*::
+  Default *convert* output directory.
+
+== Stato di uscita
+
+*0*::
+  Success.
+
+*1*::
+  Config/conflict/runtime error.
+
+*2*::
+  Usage error.
+
+== Vedere anche
+
+*nft*(8), *nftables*(8), *guide.md*, Texinfo (*info nftconf*), and *demo/README.md*.
+
+== Bug
+
+Report bugs to: <{project-email}>
+
+== Autore
+
+Written by {project-author} <{project-email}>.
+
+== Copyright
+
+Copyright \(C) {project-year} {project-author}.
+License AGPL-3.0-or-later.
+This project opposes AI exploitation and AI hegemony, and rejects mindless
+MIT-style licensing and politically naive BSD-style licensing.

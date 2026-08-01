@@ -1,0 +1,31 @@
+Source: nftconf
+Section: utils
+Priority: optional
+Maintainer: Lenik <nftconf@bodz.net>
+Build-Depends:
+ debhelper-compat (= 13),
+ meson,
+ ninja-build,
+ python3,
+ gettext,
+ asciidoctor,
+ pandoc,
+ texinfo
+Standards-Version: 4.6.0
+Homepage: https://github.com/lenik/nftconf
+Rules-Requires-Root: no
+
+Package: nftconf
+Architecture: any
+Depends:
+ python3,
+ nftables,
+ ${misc:Depends}
+Description: Declarative nftables configuration with live reconcile
+ nftconf reconciles a small declarative config language against the live
+ nftables ruleset. It supports NAT, whitelist/shield INPUT policy, multi-NIC
+ address contexts, a file-watching daemon with pidfile, and conversion to
+ consolidated nftables.d snippets.
+ .
+ Documentation is built with AsciiDoctor (man) and AsciiDoctor→DocBook→Texinfo
+ (info). A Docker Compose demo lab lives under demo/.

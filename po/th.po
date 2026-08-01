@@ -1,0 +1,111 @@
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: nftconf 0.5.0\n"
+"Report-Msgid-Bugs-To: nftconf@bodz.net\n"
+"POT-Creation-Date: 2026-08-01 18:41+0800\n"
+"PO-Revision-Date: 2026-08-01 18:50+0800\n"
+"Last-Translator: Lenik <nftconf@bodz.net>\n"
+"Language-Team: th\n"
+"Language: th\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: nftconf_app/cli.py:52
+msgid "Declarative nftables config (live reconcile)"
+msgstr "การตั้งค่า nftables แบบประกาศ (ปรับเทียบสด)"
+
+#: nftconf_app/cli.py:55
+msgid ""
+"Conflict policy (load / unload):\n"
+"  default          abort if existing nft settings conflict\n"
+"  -f, --force      overwrite (load) or remove owned rules anyway (unload)\n"
+"  -n, --no-clobber skip conflicting changes; leave existing settings alone\n"
+"\n"
+"Global options (before or after CMD):\n"
+"  -v, --verbose    DEBUG logging\n"
+"  -q, --quiet      ERROR only\n"
+"  -h, --help       show help\n"
+"  --version        show version\n"
+"\n"
+"Notes:\n"
+"  NAT (nat/dnat/redirect) is handled in prerouting/forward — it does not\n"
+"  open INPUT. Use explicit whitelist/accept for ports that need host delivery\n"
+"  (SSH, etc.). With shield on, whitelist rules join the shield allow-list.\n"
+"  dest address / dest interface set defaults for the nat … to … side.\n"
+"  convert writes consolidated nftables.d/*.nft (defines + port sets).\n"
+msgstr ""
+"นโยบายความขัดแย้ง (load / unload):\n"
+"  ค่าเริ่มต้น        หยุดถ้าขัดกับ nft ที่มีอยู่\n"
+"  -f, --force       เขียนทับ (load) หรือลบอยู่ดี (unload)\n"
+"  -n, --no-clobber  ข้ามการเปลี่ยนแปลงที่ขัดแย้ง\n"
+"\n"
+"ตัวเลือกทั่วไป (ก่อนหรือหลัง CMD):\n"
+"  -v, --verbose     บันทึก DEBUG\n"
+"  -q, --quiet       เฉพาะข้อผิดพลาด\n"
+"  -h, --help        แสดงความช่วยเหลือ\n"
+"  --version         แสดงรุ่น\n"
+"\n"
+"หมายเหตุ:\n"
+"  NAT (nat/dnat/redirect) จัดการที่ prerouting/forward — ไม่เปิด INPUT\n"
+"  ใช้ whitelist/accept สำหรับพอร์ตส่งถึงโฮสต์ (SSH ฯลฯ)\n"
+"  เมื่อ shield on รายการ whitelist อยู่ใน allow-list\n"
+"  dest address / dest interface เป็นค่าเริ่มต้นของ nat … to …\n"
+"  convert เขียน nftables.d/*.nft\n"
+
+#: nftconf_app/cli.py:83
+msgid "force overwrite/remove on conflict"
+msgstr "บังคับเขียนทับ/ลบเมื่อขัดแย้ง"
+
+#: nftconf_app/cli.py:89
+msgid "skip conflicting changes"
+msgstr "ข้ามการเปลี่ยนแปลงที่ขัดแย้ง"
+
+#: nftconf_app/cli.py:94
+msgid "show actions without applying"
+msgstr "แสดงการกระทำโดยไม่ใช้"
+
+#: nftconf_app/cli.py:97
+msgid "reconcile FILE against live nft"
+msgstr "ปรับ FILE กับ nft ที่ใช้งาน"
+
+#: nftconf_app/cli.py:101
+msgid "remove live rules owned by FILE"
+msgstr "ลบกฎสดที่เป็นของ FILE"
+
+#: nftconf_app/cli.py:105
+msgid "show drift vs live nft"
+msgstr "แสดงความต่างกับ nft สด"
+
+#: nftconf_app/cli.py:108
+msgid "parse and print resolved rules"
+msgstr "แยกวิเคราะห์และพิมพ์กฎที่แก้แล้ว"
+
+#: nftconf_app/cli.py:111
+msgid "alias for check"
+msgstr "ชื่ออื่นของ check"
+
+#: nftconf_app/cli.py:114
+msgid "watch FILE; reconcile on change"
+msgstr "เฝ้า FILE; ปรับเมื่อมีการเปลี่ยน"
+
+#: nftconf_app/cli.py:120 nftconf_app/cli.py:130
+msgid "pidfile path (default: %(default)s)"
+msgstr "พาธ pidfile (ค่าเริ่มต้น: %(default)s)"
+
+#: nftconf_app/cli.py:124
+msgid "stop daemon"
+msgstr "หยุดดีมอน"
+
+#: nftconf_app/cli.py:135
+msgid "convert nftconf FILE(s) to nftables.d/*.nft"
+msgstr "แปลง FILE nftconf เป็น nftables.d/*.nft"
+
+#: nftconf_app/cli.py:142
+msgid "output file (single input only); default nftables.d/<stem>.nft"
+msgstr "ไฟล์ผลลัพธ์ (อินพุตเดียว); ค่าเริ่มต้น nftables.d/<stem>.nft"
+
+#: nftconf_app/cli.py:146
+msgid "show this help"
+msgstr "แสดงความช่วยเหลือนี้"

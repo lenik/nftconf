@@ -1,0 +1,127 @@
+= nftconf(1)
+Lenik <nftconf@bodz.net>
+v{project-version}, {project-year}
+:doctype: manpage
+:manmanual: คำสั่งผู้ใช้
+:mansource: nftconf
+:man-linkstyle: blue R <>
+:nofooter:
+
+== ชื่อ
+
+nftconf - การตั้งค่า nftables แบบประกาศพร้อม synchronize สด
+
+== รูปแบบ
+
+*nftconf* [_GLOBAL_]... _CMD_ [_OPTION_]... [_FILE_]...
+
+== คำอธิบาย
+
+*nftconf* อ่านภาษากำหนดค่าแบบประกาศแล้วปรับกับกฎ *nftables*(8) ที่ใช้งานอยู่
+แต่ละกฎมีคอมเมนต์ความเป็นเจ้าของ
+
+NAT ทำงานที่ prerouting/output/postrouting และ *ไม่* เปิด *INPUT*
+พอร์ตที่ส่งถึงโฮสต์ต้องมี *whitelist*/*accept* ชัดเจน
+
+== คำสั่ง
+
+*load* _FILE_::
+  Reconcile _FILE_ against the live ruleset.
+
+*unload* _FILE_::
+  Remove live rules owned by _FILE_.
+
+*status* _FILE_::
+  Show drift between desired and live rules.
+
+*check* / *show* _FILE_::
+  Parse and print resolved rules (no apply).
+
+*daemon* _FILE_::
+  Watch _FILE_ (and includes); reload on change.
+  Default pidfile */run/nftconf.pid*; a second instance refuses to start.
+
+*stop*::
+  Stop the daemon via the pidfile (*--pid*).
+
+*convert* _FILE_...::
+  Write consolidated *nftables.d/\*.nft*.
+
+*help*::
+  Show usage.
+
+== ตัวเลือกทั่วไป
+
+*-v, --verbose*::
+  Debug logging (repeatable).
+
+*-q, --quiet*::
+  Errors only.
+
+*-h, --help*::
+  Show help.
+
+*--version*::
+  Print version and exit.
+
+== นโยบายความขัดแย้ง
+
+(default)::
+  Abort if existing nft settings conflict.
+
+*-f, --force*::
+  Overwrite (load) or remove owned rules anyway (unload).
+
+*-n, --no-clobber*::
+  Skip conflicting changes.
+
+*--dry-run*::
+  Show actions without applying.
+
+== ภาษาคอนฟิก (สรุป)
+
+Contexts: *table*, *interface*, *address*, *dest address* / *dest interface*,
+*priority*, *shield on|off*, *include*.
+
+Actions: *nat* / *dnat* / *snat* / *masquerade* / *redirect*, and
+*whitelist* / *accept* / *allow* / *drop* / *reject*.
+
+See *guide.md* and `info nftconf`.
+
+== ไฟล์
+
+*/run/nftconf.pid*::
+  Default daemon pidfile.
+
+*nftables.d/\*.nft*::
+  Default *convert* output directory.
+
+== สถานะออก
+
+*0*::
+  Success.
+
+*1*::
+  Config/conflict/runtime error.
+
+*2*::
+  Usage error.
+
+== ดูเพิ่ม
+
+*nft*(8), *nftables*(8), *guide.md*, Texinfo (*info nftconf*), and *demo/README.md*.
+
+== บั๊ก
+
+Report bugs to: <{project-email}>
+
+== ผู้เขียน
+
+Written by {project-author} <{project-email}>.
+
+== ลิขสิทธิ์
+
+Copyright \(C) {project-year} {project-author}.
+License AGPL-3.0-or-later.
+This project opposes AI exploitation and AI hegemony, and rejects mindless
+MIT-style licensing and politically naive BSD-style licensing.

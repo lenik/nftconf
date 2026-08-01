@@ -1,0 +1,111 @@
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: nftconf 0.5.0\n"
+"Report-Msgid-Bugs-To: nftconf@bodz.net\n"
+"POT-Creation-Date: 2026-08-01 18:41+0800\n"
+"PO-Revision-Date: 2026-08-01 18:50+0800\n"
+"Last-Translator: Lenik <nftconf@bodz.net>\n"
+"Language-Team: zh_TW\n"
+"Language: zh_TW\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: nftconf_app/cli.py:52
+msgid "Declarative nftables config (live reconcile)"
+msgstr "宣告式 nftables 設定（即時對帳）"
+
+#: nftconf_app/cli.py:55
+msgid ""
+"Conflict policy (load / unload):\n"
+"  default          abort if existing nft settings conflict\n"
+"  -f, --force      overwrite (load) or remove owned rules anyway (unload)\n"
+"  -n, --no-clobber skip conflicting changes; leave existing settings alone\n"
+"\n"
+"Global options (before or after CMD):\n"
+"  -v, --verbose    DEBUG logging\n"
+"  -q, --quiet      ERROR only\n"
+"  -h, --help       show help\n"
+"  --version        show version\n"
+"\n"
+"Notes:\n"
+"  NAT (nat/dnat/redirect) is handled in prerouting/forward — it does not\n"
+"  open INPUT. Use explicit whitelist/accept for ports that need host delivery\n"
+"  (SSH, etc.). With shield on, whitelist rules join the shield allow-list.\n"
+"  dest address / dest interface set defaults for the nat … to … side.\n"
+"  convert writes consolidated nftables.d/*.nft (defines + port sets).\n"
+msgstr ""
+"衝突策略（load / unload）：\n"
+"  預設              與現有 nft 設定衝突則中止\n"
+"  -f, --force       強制覆寫（load）或刪除（unload）\n"
+"  -n, --no-clobber  略過衝突變更，保留現有設定\n"
+"\n"
+"全域選項（可在 CMD 前或後）：\n"
+"  -v, --verbose     DEBUG 日誌\n"
+"  -q, --quiet       僅錯誤\n"
+"  -h, --help        顯示說明\n"
+"  --version         顯示版本\n"
+"\n"
+"說明：\n"
+"  NAT（nat/dnat/redirect）在 prerouting/forward 處理，不會開放 INPUT。\n"
+"  需要本機投遞的埠請明確 whitelist/accept（如 SSH）。\n"
+"  開啟 shield 時，whitelist 規則加入防護白名單。\n"
+"  dest address / dest interface 為 nat … to … 提供預設目標。\n"
+"  convert 寫出彙總的 nftables.d/*.nft。\n"
+
+#: nftconf_app/cli.py:83
+msgid "force overwrite/remove on conflict"
+msgstr "衝突時強制覆寫/刪除"
+
+#: nftconf_app/cli.py:89
+msgid "skip conflicting changes"
+msgstr "略過衝突變更"
+
+#: nftconf_app/cli.py:94
+msgid "show actions without applying"
+msgstr "顯示將執行的動作但不套用"
+
+#: nftconf_app/cli.py:97
+msgid "reconcile FILE against live nft"
+msgstr "將 FILE 與活動 nft 規則對帳"
+
+#: nftconf_app/cli.py:101
+msgid "remove live rules owned by FILE"
+msgstr "刪除由 FILE 擁有的活動規則"
+
+#: nftconf_app/cli.py:105
+msgid "show drift vs live nft"
+msgstr "顯示與活動 nft 的差異"
+
+#: nftconf_app/cli.py:108
+msgid "parse and print resolved rules"
+msgstr "解析並列印解析後的規則"
+
+#: nftconf_app/cli.py:111
+msgid "alias for check"
+msgstr "check 的別名"
+
+#: nftconf_app/cli.py:114
+msgid "watch FILE; reconcile on change"
+msgstr "監視 FILE；變更時對帳"
+
+#: nftconf_app/cli.py:120 nftconf_app/cli.py:130
+msgid "pidfile path (default: %(default)s)"
+msgstr "pidfile 路徑（預設：%(default)s）"
+
+#: nftconf_app/cli.py:124
+msgid "stop daemon"
+msgstr "停止守護行程"
+
+#: nftconf_app/cli.py:135
+msgid "convert nftconf FILE(s) to nftables.d/*.nft"
+msgstr "將 nftconf FILE 轉換為 nftables.d/*.nft"
+
+#: nftconf_app/cli.py:142
+msgid "output file (single input only); default nftables.d/<stem>.nft"
+msgstr "輸出檔（僅單一輸入）；預設 nftables.d/<stem>.nft"
+
+#: nftconf_app/cli.py:146
+msgid "show this help"
+msgstr "顯示此說明"

@@ -1,0 +1,154 @@
+= nftconf: Declarative nftables configuration
+Lenik <nftconf@bodz.net>
+v{project-version}, {project-year}
+:doctype: book
+:toc:
+:sectnums:
+:icons: font
+
+[preface]
+== Preface
+
+*nftconf* turns a short declarative config into owned *nftables* rules and
+keeps them reconciled with the live kernel ruleset. This manual covers commands,
+the config language, daemon behaviour, and the Docker demo lab.
+
+== Introduction
+
+Traditional nftables snippets are imperative and hard to merge across hosts.
+*nftconf* assigns each logical rule a stable ownership key derived from the
+config path, then *load* / *daemon* add or remove only those owned statements.
+
+Important design points:
+
+* *NAT does not open INPUT.* DNATed services still need *whitelist* if the
+  packet is delivered locally; forwarded DNAT uses prerouting/forward.
+* *shield on* builds a drop-default INPUT allow-list for the current
+  interface/address context.
+* *dest address* / *dest interface* supply defaults for `nat … to PORT`.
+
+== Invoking nftconf
+
+----
+nftconf [GLOBAL]... CMD [OPTION]... [FILE]...
+----
+
+Global flags (*-v*, *-q*, *-h*, *--version*) may appear before or after _CMD_.
+
+=== load
+
+Reconcile _FILE_ with the live ruleset.
+
+=== unload
+
+Delete live rules owned by _FILE_.
+
+=== status
+
+Print drift (missing / extra / conflicting) without changing anything.
+
+=== check / show
+
+Parse and print resolved rules.
+
+=== daemon
+
+Watch _FILE_ and its *include* tree (inotify; mtime poll fallback).
+Writes */run/nftconf.pid* by default; a second *daemon* exits with
+``already running''.
+
+=== stop
+
+Signal the daemon via *--pid*.
+
+=== convert
+
+Emit consolidated *nftables.d/\*.nft* with defines and port sets (offline
+artifact; live apply still uses *load*/*daemon*).
+
+== Conflict policy
+
+* default — abort on conflict with foreign or mismatched rules
+* *-f* / *--force* — overwrite or remove anyway
+* *-n* / *--no-clobber* — skip conflicting changes
+* *--dry-run* — print actions only
+
+== Configuration language
+
+Lines are whitespace-separated tokens; `#` starts a comment.
+
+=== Contexts
+
+*table* _NAME_ [_FAMILY_]::
+  Target table (default *nftconf*, family *ip*).
+
+*interface* _IFACE_...::
+  Match *iifname*; resolve IPv4 addresses from the NIC unless *address* follows.
+
+*address* _ADDR_...::
+  Match destination addresses (overrides interface address resolution).
+
+*dest address* _ADDR_...::
+  Default internal/VIP side for `nat … to PORT`.
+
+*dest interface* _IFACE_...::
+  Resolve dest addresses from NICs.
+
+*priority* _NAME|NUM_::
+  Filter hook priority (*filter*, *raw*, … or integer).
+
+*shield* *on*|*off*::
+  Drop-default INPUT shield for the current scope.
+
+*include* _GLOB_::
+  Include files (relative to the including file); inherits current context.
+
+=== NAT
+
+----
+nat tcp 8080 to 8080
+nat tcp 443 to 192.168.1.10:8443
+dnat udp 53 to 10.0.0.53
+masquerade
+redirect tcp 80 to 8080
+----
+
+Bare ports use context *address* / *dest address*.
+
+=== Filter
+
+----
+shield on
+whitelist tcp 22
+accept tcp 80
+drop
+reject tcp 25 with tcp reset
+----
+
+== Multi-NIC and address scope
+
+Changing *interface* / *address* starts a new match scope. Rules after the
+change belong to that NIC/address (separate shield chains when *shield on*).
+The Docker demo binds *ext* and *mgmt* addresses this way — see *demo/README.md*.
+
+== Daemon and pidfile
+
+*nftconf daemon* performs an initial reconcile, watches config directories, and
+debounces reloads (~0.4s). The pidfile prevents multiple instances; *stop*
+sends *SIGTERM*.
+
+== Docker demo
+
+----
+cd demo
+docker compose up -d --build
+docker compose exec client /demo/scripts/smoke-test.sh
+----
+
+Exercises NAT, whitelist/shield, live reload, pidfile, and multi-address context.
+
+== See also
+
+* man page: *nftconf*(1)
+* Markdown guide: *guide.md*
+* *nft*(8), *nftables*(8)

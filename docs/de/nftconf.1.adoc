@@ -1,0 +1,129 @@
+= nftconf(1)
+Lenik <nftconf@bodz.net>
+v{project-version}, {project-year}
+:doctype: manpage
+:manmanual: Benutzerbefehle
+:mansource: nftconf
+:man-linkstyle: blue R <>
+:nofooter:
+
+== Name
+
+nftconf - deklarative nftables-Konfiguration mit Live-Abgleich
+
+== Aufruf
+
+*nftconf* [_GLOBAL_]... _CMD_ [_OPTION_]... [_DATEI_]...
+
+== Beschreibung
+
+*nftconf* liest eine kleine deklarative Konfigurationssprache und gleicht sie
+mit dem laufenden *nftables*(8)-Regelwerk ab. Jede logische Regel trägt einen
+Besitzerkommentar, damit *load*, *unload* und *daemon* nur eigene Regeln ändern.
+
+NAT wirkt auf prerouting/output/postrouting und öffnet *INPUT* *nicht*.
+Ports für die lokale Zustellung brauchen explizites *whitelist*/*accept*
+(optional *shield on*).
+
+== Befehle
+
+*load* _DATEI_::
+  Gleicht _DATEI_ mit dem Live-Regelwerk ab.
+
+*unload* _DATEI_::
+  Entfernt von _DATEI_ besessene Live-Regeln.
+
+*status* _DATEI_::
+  Zeigt Abweichungen zwischen Soll und Ist.
+
+*check* / *show* _DATEI_::
+  Parst und zeigt Regeln (ohne Anwenden).
+
+*daemon* _DATEI_::
+  Überwacht _DATEI_ (und Includes) und lädt bei Änderungen neu.
+  Pidfile standardmäßig */run/nftconf.pid*; zweite Instanz wird abgelehnt.
+
+*stop*::
+  Stoppt den Daemon über das Pidfile (*--pid*).
+
+*convert* _DATEI_...::
+  Schreibt konsolidierte *nftables.d/\*.nft*.
+
+*help*::
+  Zeigt die Hilfe.
+
+== Globale Optionen
+
+*-v, --verbose*::
+  Debug-Protokoll (wiederholbar).
+
+*-q, --quiet*::
+  Nur Fehler.
+
+*-h, --help*::
+  Hilfe anzeigen.
+
+*--version*::
+  Version ausgeben und beenden.
+
+== Konfliktpolitik
+
+(Standard)::
+  Abbruch bei Konflikt mit bestehenden nft-Einstellungen.
+
+*-f, --force*::
+  Überschreiben (load) bzw. trotzdem entfernen (unload).
+
+*-n, --no-clobber*::
+  Konfliktierende Änderungen überspringen.
+
+*--dry-run*::
+  Aktionen nur anzeigen.
+
+== Konfigurationssprache (Kurz)
+
+Kontexte: *table*, *interface*, *address*, *dest address* / *dest interface*,
+*priority*, *shield on|off*, *include*.
+
+Aktionen: *nat* / *dnat* / *snat* / *masquerade* / *redirect* sowie
+*whitelist* / *accept* / *allow* / *drop* / *reject*.
+
+Siehe *guide.md* und `info nftconf`.
+
+== Dateien
+
+*/run/nftconf.pid*::
+  Standard-Pidfile des Daemons.
+
+*nftables.d/\*.nft*::
+  Standardausgabe von *convert*.
+
+== Exit-Status
+
+*0*::
+  Erfolg.
+
+*1*::
+  Konfig-/Konflikt-/Laufzeitfehler.
+
+*2*::
+  Bedienungsfehler.
+
+== Siehe auch
+
+*nft*(8), *nftables*(8), *guide.md*, Texinfo (*info nftconf*), und *demo/README.md*.
+
+== Fehler
+
+Fehler melden an: <{project-email}>
+
+== Autor
+
+Geschrieben von {project-author} <{project-email}>.
+
+== Copyright
+
+Copyright \(C) {project-year} {project-author}.
+Lizenz AGPL-3.0-or-later.
+Dieses Projekt lehnt KI-Ausbeutung und KI-Hegemonie ab sowie gedankenlose
+MIT-ähnliche und politisch naive BSD-ähnliche Lizenzen.

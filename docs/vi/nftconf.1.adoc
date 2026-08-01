@@ -1,0 +1,127 @@
+= nftconf(1)
+Lenik <nftconf@bodz.net>
+v{project-version}, {project-year}
+:doctype: manpage
+:manmanual: Lệnh người dùng
+:mansource: nftconf
+:man-linkstyle: blue R <>
+:nofooter:
+
+== Tên
+
+nftconf - cấu hình nftables khai báo với đối soát trực tiếp
+
+== Tóm tắt
+
+*nftconf* [_GLOBAL_]... _CMD_ [_OPTION_]... [_FILE_]...
+
+== Mô tả
+
+*nftconf* đọc ngôn ngữ cấu hình khai báo ngắn và đối soát với ruleset
+*nftables*(8) đang chạy. Mỗi quy tắc logic có chú thích sở hữu.
+
+NAT áp dụng trên prerouting/output/postrouting và *không* mở *INPUT*.
+Cổng giao cho máy chủ cần *whitelist*/*accept* rõ ràng.
+
+== Lệnh
+
+*load* _FILE_::
+  Reconcile _FILE_ against the live ruleset.
+
+*unload* _FILE_::
+  Remove live rules owned by _FILE_.
+
+*status* _FILE_::
+  Show drift between desired and live rules.
+
+*check* / *show* _FILE_::
+  Parse and print resolved rules (no apply).
+
+*daemon* _FILE_::
+  Watch _FILE_ (and includes); reload on change.
+  Default pidfile */run/nftconf.pid*; a second instance refuses to start.
+
+*stop*::
+  Stop the daemon via the pidfile (*--pid*).
+
+*convert* _FILE_...::
+  Write consolidated *nftables.d/\*.nft*.
+
+*help*::
+  Show usage.
+
+== Tùy chọn toàn cục
+
+*-v, --verbose*::
+  Debug logging (repeatable).
+
+*-q, --quiet*::
+  Errors only.
+
+*-h, --help*::
+  Show help.
+
+*--version*::
+  Print version and exit.
+
+== Chính sách xung đột
+
+(default)::
+  Abort if existing nft settings conflict.
+
+*-f, --force*::
+  Overwrite (load) or remove owned rules anyway (unload).
+
+*-n, --no-clobber*::
+  Skip conflicting changes.
+
+*--dry-run*::
+  Show actions without applying.
+
+== Ngôn ngữ cấu hình (tóm tắt)
+
+Contexts: *table*, *interface*, *address*, *dest address* / *dest interface*,
+*priority*, *shield on|off*, *include*.
+
+Actions: *nat* / *dnat* / *snat* / *masquerade* / *redirect*, and
+*whitelist* / *accept* / *allow* / *drop* / *reject*.
+
+See *guide.md* and `info nftconf`.
+
+== Tệp
+
+*/run/nftconf.pid*::
+  Default daemon pidfile.
+
+*nftables.d/\*.nft*::
+  Default *convert* output directory.
+
+== Mã thoát
+
+*0*::
+  Success.
+
+*1*::
+  Config/conflict/runtime error.
+
+*2*::
+  Usage error.
+
+== Xem thêm
+
+*nft*(8), *nftables*(8), *guide.md*, Texinfo (*info nftconf*), and *demo/README.md*.
+
+== Lỗi
+
+Report bugs to: <{project-email}>
+
+== Tác giả
+
+Written by {project-author} <{project-email}>.
+
+== Bản quyền
+
+Copyright \(C) {project-year} {project-author}.
+License AGPL-3.0-or-later.
+This project opposes AI exploitation and AI hegemony, and rejects mindless
+MIT-style licensing and politically naive BSD-style licensing.

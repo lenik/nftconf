@@ -1,0 +1,126 @@
+= nftconf(1)
+Lenik <nftconf@bodz.net>
+v{project-version}, {project-year}
+:doctype: manpage
+:manmanual: 使用者命令
+:mansource: nftconf
+:man-linkstyle: blue R <>
+:nofooter:
+
+== 名稱
+
+nftconf - 宣告式 nftables 設定與即時對帳
+
+== 語法
+
+*nftconf* [_全域選項_]... _命令_ [_選項_]... [_檔案_]...
+
+== 描述
+
+*nftconf* 讀取簡潔的宣告式設定，並與執行中的 *nftables*(8) 規則集對帳。
+每條邏輯規則帶有所有權註解，便於後續 *load*、*unload*、*daemon* 只增刪屬於該設定檔的規則。
+
+NAT 作用在 prerouting/output/postrouting，*不會* 自動開放 *INPUT*。
+需要本機投遞的埠必須明確 *whitelist*/*accept*（可選 *shield on*）。
+
+== 命令
+
+*load* _檔案_::
+  將 _檔案_ 與活動規則集對帳。
+
+*unload* _檔案_::
+  刪除由 _檔案_ 擁有的活動規則。
+
+*status* _檔案_::
+  顯示期望與活動規則之間的差異。
+
+*check* / *show* _檔案_::
+  解析並列印規則（不套用）。
+
+*daemon* _檔案_::
+  監視 _檔案_（及 include），變更時重新載入。
+  預設使用 pidfile */run/nftconf.pid*，第二實例會拒絕啟動。
+
+*stop*::
+  透過 pidfile（*--pid*）停止守護行程。
+
+*convert* _檔案_...::
+  寫出彙總的 *nftables.d/\*.nft*。
+
+*help*::
+  顯示用法。
+
+== 全域選項
+
+*-v, --verbose*::
+  除錯日誌（可重複）。
+
+*-q, --quiet*::
+  僅錯誤。
+
+*-h, --help*::
+  顯示說明。
+
+*--version*::
+  輸出版本並結束。
+
+== 衝突策略
+
+（預設）::
+  與現有 nft 設定衝突則中止。
+
+*-f, --force*::
+  強制覆寫（load）或刪除（unload）。
+
+*-n, --no-clobber*::
+  略過衝突變更。
+
+*--dry-run*::
+  只顯示動作，不套用。
+
+== 設定語言（摘要）
+
+上下文：*table*、*interface*、*address*、*dest address* / *dest interface*、
+*priority*、*shield on|off*、*include*。
+
+動作：*nat* / *dnat* / *snat* / *masquerade* / *redirect*，以及
+*whitelist* / *accept* / *allow* / *drop* / *reject*。
+
+詳見 *guide.md* 與 `info nftconf`。
+
+== 檔案
+
+*/run/nftconf.pid*::
+  預設守護行程 pidfile。
+
+*nftables.d/\*.nft*::
+  *convert* 預設輸出目錄。
+
+== 結束狀態
+
+*0*::
+  成功。
+
+*1*::
+  設定/衝突/執行期錯誤。
+
+*2*::
+  用法錯誤。
+
+== 參見
+
+*nft*(8)、*nftables*(8)、*guide.md*、Texinfo 手冊（*info nftconf*）、以及 Docker 展示 *demo/README.md*。
+
+== 缺陷回報
+
+請回報至：<{project-email}>
+
+== 作者
+
+由 {project-author} <{project-email}> 編寫。
+
+== 版權
+
+Copyright \(C) {project-year} {project-author}.
+授權 AGPL-3.0-or-later。
+本專案反對 AI 剝削與 AI 霸權，反對無腦 MIT 式授權與政治愚蠢的 BSD 式授權。

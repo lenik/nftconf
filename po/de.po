@@ -1,0 +1,111 @@
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: nftconf 0.5.0\n"
+"Report-Msgid-Bugs-To: nftconf@bodz.net\n"
+"POT-Creation-Date: 2026-08-01 18:41+0800\n"
+"PO-Revision-Date: 2026-08-01 18:50+0800\n"
+"Last-Translator: Lenik <nftconf@bodz.net>\n"
+"Language-Team: de\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: nftconf_app/cli.py:52
+msgid "Declarative nftables config (live reconcile)"
+msgstr "Deklarative nftables-Konfiguration (Live-Abgleich)"
+
+#: nftconf_app/cli.py:55
+msgid ""
+"Conflict policy (load / unload):\n"
+"  default          abort if existing nft settings conflict\n"
+"  -f, --force      overwrite (load) or remove owned rules anyway (unload)\n"
+"  -n, --no-clobber skip conflicting changes; leave existing settings alone\n"
+"\n"
+"Global options (before or after CMD):\n"
+"  -v, --verbose    DEBUG logging\n"
+"  -q, --quiet      ERROR only\n"
+"  -h, --help       show help\n"
+"  --version        show version\n"
+"\n"
+"Notes:\n"
+"  NAT (nat/dnat/redirect) is handled in prerouting/forward — it does not\n"
+"  open INPUT. Use explicit whitelist/accept for ports that need host delivery\n"
+"  (SSH, etc.). With shield on, whitelist rules join the shield allow-list.\n"
+"  dest address / dest interface set defaults for the nat … to … side.\n"
+"  convert writes consolidated nftables.d/*.nft (defines + port sets).\n"
+msgstr ""
+"Konfliktpolitik (load / unload):\n"
+"  Standard          Abbruch bei Konflikt mit bestehenden nft-Einstellungen\n"
+"  -f, --force       überschreiben (load) bzw. trotzdem entfernen (unload)\n"
+"  -n, --no-clobber  konfliktierende Änderungen überspringen\n"
+"\n"
+"Globale Optionen (vor oder nach CMD):\n"
+"  -v, --verbose     DEBUG-Protokoll\n"
+"  -q, --quiet       nur Fehler\n"
+"  -h, --help        Hilfe anzeigen\n"
+"  --version         Version anzeigen\n"
+"\n"
+"Hinweise:\n"
+"  NAT (nat/dnat/redirect) läuft in prerouting/forward — öffnet INPUT nicht.\n"
+"  Für Host-Zustellung explizit whitelist/accept nutzen (z. B. SSH).\n"
+"  Mit shield on gehören Whitelist-Regeln zur Allow-Liste.\n"
+"  dest address / dest interface setzen Defaults für nat … to ….\n"
+"  convert schreibt konsolidierte nftables.d/*.nft.\n"
+
+#: nftconf_app/cli.py:83
+msgid "force overwrite/remove on conflict"
+msgstr "Bei Konflikt überschreiben/entfernen"
+
+#: nftconf_app/cli.py:89
+msgid "skip conflicting changes"
+msgstr "Konfliktierende Änderungen überspringen"
+
+#: nftconf_app/cli.py:94
+msgid "show actions without applying"
+msgstr "Aktionen anzeigen, ohne anzuwenden"
+
+#: nftconf_app/cli.py:97
+msgid "reconcile FILE against live nft"
+msgstr "FILE mit Live-nft abgleichen"
+
+#: nftconf_app/cli.py:101
+msgid "remove live rules owned by FILE"
+msgstr "Von FILE besessene Live-Regeln entfernen"
+
+#: nftconf_app/cli.py:105
+msgid "show drift vs live nft"
+msgstr "Abweichung zum Live-nft anzeigen"
+
+#: nftconf_app/cli.py:108
+msgid "parse and print resolved rules"
+msgstr "Aufgelöste Regeln parsen und anzeigen"
+
+#: nftconf_app/cli.py:111
+msgid "alias for check"
+msgstr "Alias für check"
+
+#: nftconf_app/cli.py:114
+msgid "watch FILE; reconcile on change"
+msgstr "FILE überwachen; bei Änderung abgleichen"
+
+#: nftconf_app/cli.py:120 nftconf_app/cli.py:130
+msgid "pidfile path (default: %(default)s)"
+msgstr "Pidfile-Pfad (Standard: %(default)s)"
+
+#: nftconf_app/cli.py:124
+msgid "stop daemon"
+msgstr "Daemon stoppen"
+
+#: nftconf_app/cli.py:135
+msgid "convert nftconf FILE(s) to nftables.d/*.nft"
+msgstr "nftconf-FILE(s) nach nftables.d/*.nft wandeln"
+
+#: nftconf_app/cli.py:142
+msgid "output file (single input only); default nftables.d/<stem>.nft"
+msgstr "Ausgabedatei (nur eine Eingabe); Standard nftables.d/<stem>.nft"
+
+#: nftconf_app/cli.py:146
+msgid "show this help"
+msgstr "Diese Hilfe anzeigen"
