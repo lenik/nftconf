@@ -1,12 +1,16 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
+# Copyright (C) 2026 Lenik <nftconf@bodz.net>
+# SPDX-License-Identifier: AGPL-3.0-or-later
+"""Demo/source-tree entry — delegates to nftconf.py."""
+
+from __future__ import annotations
+
+import runpy
 import sys
 from pathlib import Path
 
-# Thin wrapper kept for demo bind-mounts; same bootstrap as nftconf.py.
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from nftconf_app.i18n import init_i18n
-from nftconf_app.cli import main
-
-if __name__ == "__main__":
-    init_i18n(sys.argv[0])
-    raise SystemExit(main())
+_main = Path(__file__).resolve().parent / "nftconf.py"
+if not _main.is_file():
+    sys.stderr.write("nftconf: nftconf.py not found next to this wrapper\n")
+    raise SystemExit(1)
+runpy.run_path(str(_main), run_name="__main__")

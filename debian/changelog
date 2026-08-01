@@ -1,3 +1,11 @@
+nftconf (1.0.1) testing; urgency=medium
+
+  * Fix /usr/bin/nftconf ModuleNotFoundError for nftconf_app:
+    use #!/usr/bin/python3 and bootstrap sys.path to dist-packages
+    when a non-system python3 is first on PATH.
+
+ -- Lenik (谢继雷) <lenik@bodz.net>  Sat, 01 Aug 2026 19:17:24 +0800
+
 nftconf (1.0.0) testing; urgency=medium
 
   * Declarative nftables tool with live reconcile (load/unload/status/check).
