@@ -1,5 +1,5 @@
 Source: nftconf
-Section: utils
+Section: net
 Priority: optional
 Maintainer: Lenik <nftconf@bodz.net>
 Build-Depends:

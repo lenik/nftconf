@@ -1,0 +1,13 @@
+nftconf (1.0.0) testing; urgency=medium
+
+  * Declarative nftables tool with live reconcile (load/unload/status/check).
+  * Daemon with inotify reload and pidfile single-instance guard.
+  * NAT, whitelist/shield, multi-NIC and multi-address context scopes.
+  * convert to consolidated nftables.d/*.nft.
+  * AsciiDoctor man pages (localized) and info manual (DocBook→Texinfo).
+  * Markdown guide.md; README and README-zh overhaul.
+  * Bash completion for subcommands and conflict flags.
+  * gettext translations for CLI help strings (LINGUAS).
+  * Docker Compose demo lab under demo/ for NAT/whitelist/daemon/pidfile.
+
+ -- Lenik (谢继雷) <lenik@bodz.net>  Sat, 01 Aug 2026 18:40:00 +0800
