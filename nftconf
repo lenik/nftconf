@@ -1,0 +1,12 @@
+#!/usr/bin/env python3
+import sys
+from pathlib import Path
+
+# Thin wrapper kept for demo bind-mounts; same bootstrap as nftconf.py.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from nftconf_app.i18n import init_i18n
+from nftconf_app.cli import main
+
+if __name__ == "__main__":
+    init_i18n(sys.argv[0])
+    raise SystemExit(main())
