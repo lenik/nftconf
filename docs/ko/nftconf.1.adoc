@@ -78,13 +78,43 @@ NAT 는 prerouting/output/postrouting 에 적용되며 *INPUT* 을 열지 않습
 *--dry-run*::
   Show actions without applying.
 
-== 설정 언어(요약)
+== 설정 언어
 
-Contexts: *table*, *interface*, *address*, *dest address* / *dest interface*,
+One directive per line. Blank lines ignored. *#* starts a comment (unless
+quoted). The first token is the directive; names and keywords are
+case-insensitive. Context lasts until the next context directive.
+
+=== Context
+
+*table*, *interface*, *address*, *dest address* / *dest interface*,
 *priority*, *shield on|off*, *include*.
 
-Actions: *nat* / *dnat* / *snat* / *masquerade* / *redirect*, and
-*whitelist* / *accept* / *allow* / *drop* / *reject*.
+=== Ports (tcp / udp / sctp / dccp)
+
+After a portful protocol: a port, an inclusive range, or a list (spaces
+and/or commas). One atom is a scalar/range; two or more become an
+nftables anonymous set.
+
+----
+whitelist tcp 22
+whitelist tcp 8000-8080
+whitelist tcp 80 443 1080 8000-8080
+whitelist tcp 80,443,1080,8000-8080
+nat tcp 80 443 8000-8080 to 10.0.0.50
+----
+
+Ports 0–65535; *HIGH* ≥ *LOW*. Optional *ADDR:PORT* (or *[IPv6]:PORT*)
+prefix. Otherwise *address* / *interface* supply *ip daddr*. Lists apply
+to filter and NAT (before *to*), not *icmp* / *ct*.
+
+=== NAT and filter
+
+*nat* / *dnat* / *snat* _PROTO_ _PORT_... *to* _DEST_, *masquerade*,
+*redirect*. NAT does not open *INPUT*.
+
+*whitelist* / *allow* alias *accept*. With *shield on* they join the
+shield chain. Everything after *reject … with* is passed to nftables
+(*tcp reset*, …).
 
 See *guide.md* and `info nftconf`.
 

@@ -78,15 +78,46 @@ Cổng giao cho máy chủ cần *whitelist*/*accept* rõ ràng.
 *--dry-run*::
   Show actions without applying.
 
-== Ngôn ngữ cấu hình (tóm tắt)
+== Ngôn ngữ cấu hình
 
-Contexts: *table*, *interface*, *address*, *dest address* / *dest interface*,
+Một chỉ thị mỗi dòng. Dòng trống bị bỏ qua. *#* bắt đầu chú thích (trừ
+trong ngoặc kép). Token đầu là chỉ thị; tên và từ khóa không phân biệt
+hoa thường. Ngữ cảnh giữ đến chỉ thị ngữ cảnh tiếp theo.
+
+=== Ngữ cảnh
+
+*table*, *interface*, *address*, *dest address* / *dest interface*,
 *priority*, *shield on|off*, *include*.
 
-Actions: *nat* / *dnat* / *snat* / *masquerade* / *redirect*, and
-*whitelist* / *accept* / *allow* / *drop* / *reject*.
+=== Cổng (tcp / udp / sctp / dccp)
 
-See *guide.md* and `info nftconf`.
+Sau giao thức có cổng: một cổng, khoảng inclusive, hoặc danh sách
+(khoảng trắng và/hoặc dấu phẩy). Một phần tử thành vô hướng/khoảng; hai
+trở lên thành tập ẩn danh nftables.
+
+----
+whitelist tcp 22
+whitelist tcp 8000-8080
+whitelist tcp 80 443 1080 8000-8080
+whitelist tcp 80,443,1080,8000-8080
+nat tcp 80 443 8000-8080 to 10.0.0.50
+----
+
+Cổng 0–65535; *HIGH* ≥ *LOW*. Tiền tố tùy chọn *ADDR:PORT* (hoặc
+*[IPv6]:PORT*). Không thì *address* / *interface* cung cấp *ip daddr*.
+Danh sách dùng cho filter và NAT (trước *to*), không dùng cho
+*icmp* / *ct*.
+
+=== NAT và filter
+
+*nat* / *dnat* / *snat* _PROTO_ _PORT_... *to* _DEST_, *masquerade*,
+*redirect*. NAT không mở *INPUT*.
+
+*whitelist* / *allow* là bí danh của *accept*. Với *shield on* chúng vào
+chuỗi shield. Mọi token sau *reject … with* được đưa cho nftables
+(*tcp reset*, …).
+
+Xem *guide.md* và `info nftconf`.
 
 == Tệp
 

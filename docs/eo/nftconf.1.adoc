@@ -78,15 +78,46 @@ Gastigantaj pordoj bezonas eksplicitan *whitelist*/*accept*.
 *--dry-run*::
   Show actions without applying.
 
-== Agorda lingvo (resumo)
+== Agorda lingvo
 
-Contexts: *table*, *interface*, *address*, *dest address* / *dest interface*,
+Unu direktivo en linio. Malplenaj linioj estas ignorataj. *#* komencas
+komenton (krom en citiloj). La unua ĵetono estas la direktivo; nomoj kaj
+ŝlosilvortoj estas usklec-sendependaj. Kunteksto daŭras ĝis la sekva
+kunteksta direktivo.
+
+=== Kunteksto
+
+*table*, *interface*, *address*, *dest address* / *dest interface*,
 *priority*, *shield on|off*, *include*.
 
-Actions: *nat* / *dnat* / *snat* / *masquerade* / *redirect*, and
-*whitelist* / *accept* / *allow* / *drop* / *reject*.
+=== Pordoj (tcp / udp / sctp / dccp)
 
-See *guide.md* and `info nftconf`.
+Post pordohava protokolo: unu pordo, inkluziva intervalo, aŭ listo
+(spacetoj kaj/aŭ komoj). Unu ero fariĝas skalaro/intervalo; du aŭ pli
+fariĝas anonima nftables-aro.
+
+----
+whitelist tcp 22
+whitelist tcp 8000-8080
+whitelist tcp 80 443 1080 8000-8080
+whitelist tcp 80,443,1080,8000-8080
+nat tcp 80 443 8000-8080 to 10.0.0.50
+----
+
+Pordoj 0–65535; *HIGH* ≥ *LOW*. Laŭvola prefikso *ADDR:PORT* (aŭ
+*[IPv6]:PORT*). Alie *address* / *interface* donas *ip daddr*. Listoj
+validas por filtrilo kaj NAT (antaŭ *to*), ne por *icmp* / *ct*.
+
+=== NAT kaj filtrilo
+
+*nat* / *dnat* / *snat* _PROTO_ _PORT_... *to* _DEST_, *masquerade*,
+*redirect*. NAT ne malfermas *INPUT*.
+
+*whitelist* / *allow* estas kaŝnomoj de *accept*. Kun *shield on* ili
+eniru la ŝildan ĉenon. Ĉio post *reject … with* iras al nftables
+(*tcp reset*, …).
+
+Vidu *guide.md* kaj `info nftconf`.
 
 == Dosieroj
 

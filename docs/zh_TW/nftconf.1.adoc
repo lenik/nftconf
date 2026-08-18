@@ -78,13 +78,63 @@ NAT 作用在 prerouting/output/postrouting，*不會* 自動開放 *INPUT*。
 *--dry-run*::
   只顯示動作，不套用。
 
-== 設定語言（摘要）
+== 設定語言
 
-上下文：*table*、*interface*、*address*、*dest address* / *dest interface*、
-*priority*、*shield on|off*、*include*。
+設定檔每行一條指令。空行忽略。*#* 起註解（引號內除外）。首個詞元為指令名，
+指令與關鍵字不分大小寫。上下文對其後規則一直有效，直到下一條上下文指令。
+沒有區塊語法。
 
-動作：*nat* / *dnat* / *snat* / *masquerade* / *redirect*，以及
-*whitelist* / *accept* / *allow* / *drop* / *reject*。
+=== 上下文
+
+*table* _名稱_ [_族_]::
+  目標表（預設 *nftconf*）。族為 *ip*（預設）、*ip6*、*inet*、*arp*、
+  *bridge*、*netdev*。
+
+*interface* _網卡_...::
+  匹配 *iifname*；並解析這些網卡的 IPv4，直到出現 *address*。每個網卡產生一條規則。
+
+*address* _位址_...::
+  目的位址匹配（*ip daddr*），覆蓋網卡解析。
+
+*dest address* / *dest interface*::
+  `nat … to PORT` 的預設內網/VIP 側。*destination* 是 *dest* 的別名。
+
+*priority* _名_|_數_::
+  INPUT 掛鉤優先順序。NAT 掛鉤不受此影響。
+
+*shield* *on*|*off*::
+  目前網卡/位址作用域的預設丟棄 INPUT 白名單。*on* 本身不會開放應用埠。
+
+*include* _GLOB_::
+  包含檔案（相對包含者所在目錄）；繼承目前上下文的副本。
+
+=== 埠（tcp / udp / sctp / dccp）
+
+埠協定之後寫：單一埠、閉區間、或列表（空白及/或逗號分隔）。
+單項產生為純量或區間；兩項以上產生為 nftables 匿名集合。
+
+----
+whitelist tcp 22
+whitelist tcp 8000-8080
+whitelist tcp 80 443 1080 8000-8080
+whitelist tcp 80,443,1080,8000-8080
+nat tcp 80 443 8000-8080 to 10.0.0.50
+----
+
+埠範圍 0–65535；*HIGH* 必須 ≥ *LOW*。可選 *ADDR:PORT*（或 *[IPv6]:PORT*）
+作為列表前綴。否則由 *address* / *interface* 提供 *ip daddr*。
+
+列表可用於 *whitelist* / *accept* / *allow* / *drop* / *reject*，以及
+*nat* / *dnat* / *snat* / *masquerade* / *redirect*（在 *to* 之前）。
+不用於 *icmp* / *ct*。
+
+=== NAT 與過濾
+
+*nat* / *dnat* / *snat* _協定_ _埠_... *to* _目的_，*masquerade*，
+*redirect*。NAT *不會* 開放 *INPUT*。
+
+*whitelist* / *allow* 等同 *accept*。*shield on* 時進入盾牌鏈。
+*reject … with* 之後的全部詞元交給 nftables（如 *tcp reset*）。
 
 詳見 *guide.md* 與 `info nftconf`。
 

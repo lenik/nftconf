@@ -9,6 +9,7 @@
 - **daemon** — inotify 热加载 + **pidfile**（单实例）
 - **NAT**（`nat`/`dnat`/`snat`/`masquerade`/`redirect`），且不自动开放 INPUT
 - **whitelist / shield** — 默认丢弃的 INPUT 白名单
+- **TCP/UDP 端口列表与区间** — `whitelist tcp 80 443 1080 8000-8080`
 - **上下文作用域** — 通过 `interface` / `address` 支持多网卡/多地址
 - **convert** — 生成汇总的 `nftables.d/*.nft`
 - **Docker 演示** — `demo/` 下的 NAT、shield、热加载、pidfile、双网卡实验网
@@ -62,12 +63,14 @@ priority filter
 
 shield on
 whitelist tcp 22
+whitelist tcp 80 443 1080 8000-8080
 nat tcp 8080 to 8080
+nat tcp 80 443 to 10.0.0.50
 
 include conf.d/*.conf
 ```
 
-完整语法见 [guide.md](guide.md)。
+完整语法见 [guide.md](guide.md)（端口、区间、列表、NAT、shield）。
 
 ## 构建与测试
 

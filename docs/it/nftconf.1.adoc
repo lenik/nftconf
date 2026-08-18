@@ -78,15 +78,47 @@ Le porte consegnate all'host richiedono *whitelist*/*accept* esplicito.
 *--dry-run*::
   Show actions without applying.
 
-== Linguaggio di config (riepilogo)
+== Linguaggio di config
 
-Contexts: *table*, *interface*, *address*, *dest address* / *dest interface*,
+Una direttiva per riga. Le righe vuote sono ignorate. *#* inizia un
+commento (salvo tra virgolette). Il primo token è la direttiva; nomi e
+parole chiave non distinguono maiuscole/minuscole. Il contesto vale fino
+alla direttiva di contesto successiva.
+
+=== Contesto
+
+*table*, *interface*, *address*, *dest address* / *dest interface*,
 *priority*, *shield on|off*, *include*.
 
-Actions: *nat* / *dnat* / *snat* / *masquerade* / *redirect*, and
-*whitelist* / *accept* / *allow* / *drop* / *reject*.
+=== Porte (tcp / udp / sctp / dccp)
 
-See *guide.md* and `info nftconf`.
+Dopo un protocollo con porte: una porta, un intervallo inclusivo, o un
+elenco (spazi e/o virgole). Un solo elemento è uno scalare/intervallo;
+due o più diventano un insieme anonimo nftables.
+
+----
+whitelist tcp 22
+whitelist tcp 8000-8080
+whitelist tcp 80 443 1080 8000-8080
+whitelist tcp 80,443,1080,8000-8080
+nat tcp 80 443 8000-8080 to 10.0.0.50
+----
+
+Porte 0–65535; *HIGH* ≥ *LOW*. Prefisso opzionale *ADDR:PORT* (o
+*[IPv6]:PORT*). Altrimenti *address* / *interface* forniscono *ip daddr*.
+Gli elenchi valgono per filtro e NAT (prima di *to*), non per
+*icmp* / *ct*.
+
+=== NAT e filtro
+
+*nat* / *dnat* / *snat* _PROTO_ _PORT_... *to* _DEST_, *masquerade*,
+*redirect*. Il NAT non apre *INPUT*.
+
+*whitelist* / *allow* sono alias di *accept*. Con *shield on* entrano
+nella catena shield. Tutto dopo *reject … with* è passato a nftables
+(*tcp reset*, …).
+
+Vedere *guide.md* e `info nftconf`.
 
 == File
 

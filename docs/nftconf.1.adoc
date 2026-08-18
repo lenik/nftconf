@@ -83,17 +83,95 @@ Applies to *load*, *unload*, *daemon*, and *convert*:
 *--dry-run*::
   Show actions without applying.
 
-== Config language (summary)
+== Configuration language
 
-Context directives set defaults for following rules: *table*, *interface*,
-*address*, *dest address* / *dest interface*, *priority*, *shield on|off*,
-*include*.
+A config file is one directive per line. Blank lines are ignored.
+*#* starts a comment (unless inside quotes). The first token is the
+directive; names and keywords are case-insensitive. Context applies to
+every following rule until the next context directive. There is no block
+syntax.
 
-Actions: *nat* / *dnat* / *snat* / *masquerade* / *redirect*, and filter
-verdicts *whitelist* / *accept* / *allow* / *drop* / *reject*.
+=== Context
 
-Multiple *interface* or *address* values expand the match scope (multi-NIC /
-multi-address). See *guide.md* and `info nftconf`.
+*table* _NAME_ [_FAMILY_]::
+  Target table (default *nftconf*). Family *ip* (default), *ip6*, *inet*,
+  *arp*, *bridge*, *netdev*.
+
+*interface* _IFACE_...::
+  Match *iifname*; also resolve IPv4 from those NICs until *address* is set.
+  One rule is emitted per interface.
+
+*address* _ADDR_...::
+  Destination-address match (*ip daddr*). Overrides interface resolution.
+
+*dest address* _ADDR_... / *dest interface* _IFACE_...::
+  Default internal/VIP side for `nat … to PORT`. *destination* is an alias
+  of *dest*.
+
+*priority* _NAME_|_NUMBER_::
+  INPUT hook priority (*raw*, *mangle*, *dstnat*, *filter*, *security*,
+  *srcnat*, or an integer). NAT hooks ignore this.
+
+*shield* *on*|*off*::
+  Drop-default INPUT allow-list for the current interface/address scope.
+  *on* does not open application ports by itself.
+
+*include* _GLOB_::
+  Include files (relative to the including file); inherits a copy of the
+  current context.
+
+=== Port specs (tcp / udp / sctp / dccp)
+
+After a portful protocol, write a port, an inclusive range, or a list.
+Items may be separated by spaces and/or commas. A single atom is emitted
+as a scalar or range; two or more become an nftables anonymous set.
+
+----
+whitelist tcp 22
+whitelist tcp 8000-8080
+whitelist tcp 80 443 1080 8000-8080
+whitelist tcp 80,443,1080,8000-8080
+whitelist tcp 192.0.2.10:80 443
+nat tcp 80 443 8000-8080 to 10.0.0.50
+----
+
+Ports are 0–65535; *HIGH* must be ≥ *LOW*. An optional *ADDR:PORT* (or
+*[IPv6]:PORT*) prefixes the list; following bare ports share that
+address. Otherwise *address* / *interface* supply *ip daddr*.
+
+Lists are accepted on *whitelist* / *accept* / *allow* / *drop* /
+*reject* and on *nat* / *dnat* / *snat* / *masquerade* / *redirect*
+(before *to*). Not used for *icmp* / *ct*.
+
+The token after *to* is one destination: *ADDR* (keep source ports),
+*PORT* (use *dest address*), or *ADDR:PORT*.
+
+=== NAT
+
+*nat* / *dnat* / *snat* _PROTO_ _PORT_... *to* _DEST_, *masquerade*
+[_PROTO_ [_PORT_...]], *redirect* _PROTO_ _PORT_... *to* _PORT_.
+
+NAT uses prerouting/output/postrouting and *does not* open *INPUT*.
+
+=== Filter
+
+*whitelist* / *allow* are aliases of *accept*. With *shield on* they join
+the shield chain (established/related and ICMP are allowed, then
+user ports, then *drop*).
+
+----
+shield on
+whitelist tcp 22
+whitelist tcp 80 443 1080 8000-8080
+accept icmp
+reject tcp 25 587 with tcp reset
+drop
+----
+
+*accept* with no match is a catch-all; *accept tcp* matches any TCP.
+Everything after *reject … with* is passed to nftables (*tcp reset*, …).
+
+See *guide.md* and `info nftconf` for the full language.
 
 == Files
 

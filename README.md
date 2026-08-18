@@ -10,6 +10,7 @@ stable comment tag.
 - **daemon** — inotify reload + **pidfile** (single instance)
 - **NAT** (`nat`/`dnat`/`snat`/`masquerade`/`redirect`) without opening INPUT
 - **whitelist / shield** — drop-default INPUT allow-lists
+- **TCP/UDP port lists and ranges** — `whitelist tcp 80 443 1080 8000-8080`
 - **Context scopes** — multi-NIC / multi-address via `interface` / `address`
 - **convert** — emit consolidated `nftables.d/*.nft`
 - **Docker demo** — NAT, shield, reload, pidfile, dual-NIC lab under `demo/`
@@ -63,12 +64,14 @@ priority filter
 
 shield on
 whitelist tcp 22
+whitelist tcp 80 443 1080 8000-8080
 nat tcp 8080 to 8080
+nat tcp 80 443 to 10.0.0.50
 
 include conf.d/*.conf
 ```
 
-See [guide.md](guide.md) for the full language.
+See [guide.md](guide.md) for the full language (ports, ranges, lists, NAT, shield).
 
 ## Build and test
 

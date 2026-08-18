@@ -78,15 +78,42 @@ NAT ทำงานที่ prerouting/output/postrouting และ *ไม่*
 *--dry-run*::
   Show actions without applying.
 
-== ภาษาคอนฟิก (สรุป)
+== ภาษาคอนฟิก
 
-Contexts: *table*, *interface*, *address*, *dest address* / *dest interface*,
+คำสั่งละบรรทัด บรรทัดว่างถูกละเว้น *#* เริ่มหมายเหตุ (ยกเว้นในเครื่องหมายคำพูด)
+โทเคนแรกคือคำสั่ง ชื่อและคำสำคัญไม่แยกตัวพิมพ์ บริบทใช้ได้จนกว่าจะมีคำสั่งบริบทถัดไป
+
+=== บริบท
+
+*table*, *interface*, *address*, *dest address* / *dest interface*,
 *priority*, *shield on|off*, *include*.
 
-Actions: *nat* / *dnat* / *snat* / *masquerade* / *redirect*, and
-*whitelist* / *accept* / *allow* / *drop* / *reject*.
+=== พอร์ต (tcp / udp / sctp / dccp)
 
-See *guide.md* and `info nftconf`.
+หลังโปรโตคอลที่มีพอร์ต: พอร์ตเดียว, ช่วงรวมปลาย, หรือรายการ (ช่องว่างและ/หรือจุลภาค)
+หนึ่งรายการเป็นสเกลาร์/ช่วง สองรายการขึ้นไปเป็นเซตนามแฝง nftables
+
+----
+whitelist tcp 22
+whitelist tcp 8000-8080
+whitelist tcp 80 443 1080 8000-8080
+whitelist tcp 80,443,1080,8000-8080
+nat tcp 80 443 8000-8080 to 10.0.0.50
+----
+
+พอร์ต 0–65535; *HIGH* ≥ *LOW* คำนำหน้า *ADDR:PORT* (หรือ *[IPv6]:PORT*) ได้
+มิฉะนั้น *address* / *interface* ให้ *ip daddr* รายการใช้กับ filter และ NAT
+(ก่อน *to*) ไม่ใช้กับ *icmp* / *ct*
+
+=== NAT และตัวกรอง
+
+*nat* / *dnat* / *snat* _PROTO_ _PORT_... *to* _DEST_, *masquerade*,
+*redirect*. NAT ไม่เปิด *INPUT*
+
+*whitelist* / *allow* เป็นนามแฝงของ *accept* เมื่อ *shield on* จะเข้าสู่สาย
+shield ทุกโทเคนหลัง *reject … with* ส่งให้ nftables (*tcp reset*, …)
+
+ดู *guide.md* และ `info nftconf`
 
 == ไฟล์
 
