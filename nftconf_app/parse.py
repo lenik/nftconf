@@ -26,6 +26,8 @@ from nftconf_app.model import (
     _comment,
     _owner_id,
     _rule_key,
+    format_dports,
+    normalize_port_atom,
 )
 
 _SPEC_RE = re.compile(
@@ -65,13 +67,81 @@ def _parse_priority(tok: str) -> int:
 def _parse_spec(spec: str) -> tuple[Optional[str], str]:
     m = _SPEC_RE.match(spec)
     if not m:
-        raise ConfigError(f"invalid address/port spec: {spec!r}")
+        raise ConfigError(
+            f"invalid address/port spec: {spec!r} "
+            "(want PORT, PORT-PORT, ADDR:PORT, or [IPv6]:PORT)"
+        )
     if m.group("ports_only"):
-        return None, m.group("ports_only")
+        return None, normalize_port_atom(m.group("ports_only"))
     addr = m.group("addr")
     if addr.startswith("[") and addr.endswith("]"):
         addr = addr[1:-1]
-    return addr, m.group("ports")
+    return addr, normalize_port_atom(m.group("ports"))
+
+
+def _split_comma_outside_brackets(s: str) -> list[str]:
+    """Split on commas that are not inside [IPv6] brackets."""
+    parts: list[str] = []
+    buf: list[str] = []
+    depth = 0
+    for ch in s:
+        if ch == "[":
+            depth += 1
+            buf.append(ch)
+        elif ch == "]":
+            if depth:
+                depth -= 1
+            buf.append(ch)
+        elif ch == "," and depth == 0:
+            piece = "".join(buf).strip()
+            if piece:
+                parts.append(piece)
+            buf = []
+        else:
+            buf.append(ch)
+    piece = "".join(buf).strip()
+    if piece:
+        parts.append(piece)
+    if not parts:
+        raise ConfigError(f"empty port list in {s!r}")
+    return parts
+
+
+def _parse_match_ports(tokens: list[str]) -> tuple[Optional[str], str]:
+    """Parse PROTO-following tokens as a port list.
+
+    Each whitespace token may itself contain commas. Pieces are:
+      PORT              e.g. 80
+      PORT-PORT         e.g. 8000-8080 (inclusive)
+      ADDR:PORT[S]      e.g. 192.0.2.10:80 or [2001:db8::1]:443
+
+    Multiple pieces become one nftables anonymous set. An address, if
+    present, must be the same on every ADDR:… piece; bare ports inherit it.
+    """
+    if not tokens:
+        raise ConfigError(
+            "missing port spec (want PORT, PORT-PORT, a list, or ADDR:PORT)"
+        )
+    addr: Optional[str] = None
+    atoms: list[str] = []
+    for tok in tokens:
+        for piece in _split_comma_outside_brackets(tok):
+            try:
+                a, p = _parse_spec(piece)
+            except ConfigError:
+                raise ConfigError(
+                    f"invalid port or spec: {piece!r} "
+                    "(want PORT, PORT-PORT, or ADDR:PORT)"
+                ) from None
+            if a is not None:
+                if addr is not None and a != addr:
+                    raise ConfigError(
+                        f"conflicting match addresses in port list: "
+                        f"{addr} vs {a}"
+                    )
+                addr = a
+            atoms.append(p)
+    return addr, format_dports(atoms)
 
 
 def _parse_dest(spec: str, ctx: Context, *, dports: str) -> tuple[str, str]:
@@ -89,11 +159,12 @@ def _parse_dest(spec: str, ctx: Context, *, dports: str) -> tuple[str, str]:
         return spec, dports
 
     try:
-        addr, ports = _parse_spec(spec)
+        addr, ports = _parse_match_ports([spec])
     except ConfigError:
         raise ConfigError(
             f"invalid destination: {spec!r} "
-            "(want ADDR:PORT, PORT, or ADDR with dest address context)"
+            "(want ADDR:PORT, PORT, PORT-PORT, a port list, "
+            "or ADDR with dest address context)"
         ) from None
 
     if addr is None:
@@ -522,6 +593,27 @@ def _ifaces(ctx: Context) -> list[Optional[str]]:
     return list(ctx.interfaces) if ctx.interfaces else [None]
 
 
+def _require_to_clause(
+    parts: list[str], usage: str
+) -> tuple[str, list[str], str]:
+    """Parse ``OP PROTO PORT... to DEST`` into (proto, port tokens, dest)."""
+    if len(parts) < 5:
+        raise ConfigError(usage)
+    to_idx = None
+    for i, p in enumerate(parts):
+        if p.lower() == "to":
+            to_idx = i
+    if to_idx is None or to_idx != len(parts) - 2 or to_idx < 3:
+        raise ConfigError(usage)
+    proto = parts[1].lower()
+    if proto not in PROTO_PORT:
+        raise ConfigError(f"unsupported proto: {proto}")
+    port_tokens = parts[2:to_idx]
+    if not port_tokens:
+        raise ConfigError(usage)
+    return proto, port_tokens, parts[-1]
+
+
 def _emit_nat(
     op: str,
     parts: list[str],
@@ -534,16 +626,16 @@ def _emit_nat(
     needs = ((ctx.family, ctx.table, "nat"),)
 
     if op == "masquerade":
-        # masquerade [PROTO [SPEC]]
+        # masquerade [PROTO [PORT...]]
         proto = None
         daddrs: tuple[str, ...] = ()
         dports = None
         if len(parts) >= 2:
             proto = parts[1].lower()
             if proto not in PROTO_PORT:
-                raise ConfigError("usage: masquerade [PROTO [SPEC]]")
+                raise ConfigError("usage: masquerade [PROTO [PORT...]]")
         if len(parts) >= 3:
-            a, dports = _parse_spec(parts[2])
+            a, dports = _parse_match_ports(parts[2:])
             daddrs = (a,) if a else _context_daddrs(ctx)
         for iface in _ifaces(ctx):
             key = _rule_key(
@@ -578,16 +670,15 @@ def _emit_nat(
         return
 
     if op == "redirect":
-        # redirect PROTO SPEC to PORT
-        if len(parts) != 5 or parts[3].lower() != "to":
-            raise ConfigError("usage: redirect PROTO SPEC to PORT")
-        proto = parts[1].lower()
-        if proto not in PROTO_PORT:
-            raise ConfigError(f"unsupported proto: {proto}")
-        src_addr, dports = _parse_spec(parts[2])
-        to_port = parts[4]
-        if not re.fullmatch(r"\d+(-\d+)?", to_port):
-            raise ConfigError(f"invalid redirect port: {to_port}")
+        # redirect PROTO PORT... to PORT
+        proto, port_tokens, to_port_tok = _require_to_clause(
+            parts, "usage: redirect PROTO PORT... to PORT"
+        )
+        src_addr, dports = _parse_match_ports(port_tokens)
+        try:
+            to_port = normalize_port_atom(to_port_tok)
+        except ConfigError as e:
+            raise ConfigError(f"invalid redirect port: {to_port_tok}") from e
         daddrs = (src_addr,) if src_addr else _context_daddrs(ctx)
         for iface in _ifaces(ctx):
             daddr = _daddr_match(daddrs, ctx.family)
@@ -627,14 +718,11 @@ def _emit_nat(
         return
 
     if op == "snat":
-        # snat PROTO SPEC to ADDR[:PORT]
-        if len(parts) != 5 or parts[3].lower() != "to":
-            raise ConfigError("usage: snat PROTO SPEC to ADDR[:PORT]")
-        proto = parts[1].lower()
-        if proto not in PROTO_PORT:
-            raise ConfigError(f"unsupported proto: {proto}")
-        src_addr, dports = _parse_spec(parts[2])
-        to = parts[4]
+        # snat PROTO PORT... to ADDR[:PORT]
+        proto, port_tokens, to = _require_to_clause(
+            parts, "usage: snat PROTO PORT... to ADDR[:PORT]"
+        )
+        src_addr, dports = _parse_match_ports(port_tokens)
         daddrs = (src_addr,) if src_addr else _context_daddrs(ctx)
         for iface in _ifaces(ctx):
             key = _rule_key(
@@ -666,14 +754,12 @@ def _emit_nat(
             )
         return
 
-    # nat | dnat : PROTO SPEC to DEST
-    if len(parts) != 5 or parts[3].lower() != "to":
-        raise ConfigError(f"usage: {op} PROTO SPEC to DEST")
-    proto = parts[1].lower()
-    if proto not in PROTO_PORT:
-        raise ConfigError(f"unsupported proto: {proto}")
-    src_addr, dports = _parse_spec(parts[2])
-    to_addr, to_ports = _parse_dest(parts[4], ctx, dports=dports)
+    # nat | dnat : PROTO PORT... to DEST
+    proto, port_tokens, dest = _require_to_clause(
+        parts, f"usage: {op} PROTO PORT... to DEST"
+    )
+    src_addr, dports = _parse_match_ports(port_tokens)
+    to_addr, to_ports = _parse_dest(dest, ctx, dports=dports)
     daddrs = (src_addr,) if src_addr else _context_daddrs(ctx)
     if not daddrs:
         raise ConfigError(
@@ -766,7 +852,7 @@ def _parse_filter_match(
       accept icmp
       accept icmpv6
       accept ct established[,related]...
-      accept PROTO SPEC              → tcp/udp + port[/addr]
+      accept PROTO PORT...           → tcp/udp + port/range/list[/addr]
       accept PROTO                   → meta l4proto (no port)
     """
     if len(parts) == 1:
@@ -794,9 +880,7 @@ def _parse_filter_match(
     if tok in PROTO_PORT:
         if len(parts) == 2:
             return f"meta l4proto {tok} ", tok, (), None
-        if len(parts) != 3:
-            raise ConfigError(f"usage: VERDICT {tok} SPEC")
-        src_addr, dports = _parse_spec(parts[2])
+        src_addr, dports = _parse_match_ports(parts[2:])
         daddrs = (src_addr,) if src_addr else _context_daddrs(ctx)
         daddr = _daddr_match(daddrs, ctx.family)
         return f"{daddr}{tok} dport {dports} ", f"{tok} {dports}", daddrs, dports
@@ -818,13 +902,13 @@ def _emit_filter(
     # whitelist/allow → accept
     verdict = "accept" if op in ("whitelist", "allow") else op
     reject_with = None
-    # reject PROTO SPEC [with ICMP_TYPE]
+    # reject PROTO PORT... [with ICMP_TYPE]
     body = parts
     if verdict == "reject" and "with" in [p.lower() for p in parts]:
         wi = next(i for i, p in enumerate(parts) if p.lower() == "with")
         if wi + 1 >= len(parts):
             raise ConfigError("usage: reject ... with TYPE")
-        reject_with = parts[wi + 1]
+        reject_with = " ".join(parts[wi + 1 :])
         body = parts[:wi]
 
     match_expr, summary_tail, daddrs, dports = _parse_filter_match(body, ctx)

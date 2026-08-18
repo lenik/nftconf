@@ -6,7 +6,7 @@ import hashlib
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Iterable, Optional
 
 PRIORITY_NAMES = {
     "raw": -300,
@@ -17,12 +17,66 @@ PRIORITY_NAMES = {
     "srcnat": 100,
 }
 
-# L4 protos that take a port SPEC
+# L4 protos that take a port SPEC (single, range, or list)
 PROTO_PORT = {"tcp", "udp", "sctp", "dccp"}
 # Anything acceptable after accept/drop/reject/nat/…
 PROTO_ALL = PROTO_PORT | {"icmp", "icmpv6", "ip", "ip6", "any"}
 
 FAMILIES = ("ip", "ip6", "inet", "arp", "bridge", "netdev")
+
+_PORT_ATOM_RE = re.compile(r"^(\d+)(?:-(\d+))?$")
+
+
+def normalize_port_atom(atom: str) -> str:
+    """Canonical PORT or inclusive PORT-PORT. Ports are 0..65535."""
+    m = _PORT_ATOM_RE.fullmatch(atom.strip())
+    if not m:
+        raise ConfigError(
+            f"invalid port: {atom!r} (want PORT or PORT-PORT, e.g. 80 or 8000-8080)"
+        )
+    lo = int(m.group(1))
+    hi_s = m.group(2)
+    if lo > 65535:
+        raise ConfigError(f"port out of range: {atom!r} (0-65535)")
+    if hi_s is None:
+        return str(lo)
+    hi = int(hi_s)
+    if hi > 65535:
+        raise ConfigError(f"port out of range: {atom!r} (0-65535)")
+    if hi < lo:
+        raise ConfigError(f"invalid port range {atom!r}: end is before start")
+    if hi == lo:
+        return str(lo)
+    return f"{lo}-{hi}"
+
+
+def _port_sort_key(atom: str) -> tuple[int, int, str]:
+    if "-" in atom:
+        a, b = atom.split("-", 1)
+        return (int(a), int(b), atom)
+    n = int(atom)
+    return (n, n, atom)
+
+
+def format_dports(atoms: Iterable[str]) -> str:
+    """nft dport RHS: 80, 8000-8080, or { 80, 443, 8000-8080 }."""
+    items = sorted(dict.fromkeys(atoms), key=_port_sort_key)
+    if not items:
+        raise ConfigError("empty port list")
+    if len(items) == 1:
+        return items[0]
+    return "{ " + ", ".join(items) + " }"
+
+
+def port_atoms(expr: str) -> list[str]:
+    """Split an nft dport RHS (scalar, range, or set literal) into atoms."""
+    s = (expr or "").strip()
+    if not s:
+        return []
+    if s.startswith("{") and s.endswith("}"):
+        s = s[1:-1].strip()
+    return [p.strip() for p in s.split(",") if p.strip()]
+
 
 DEFAULT_PID = "/run/nftconf.pid"
 DEFAULT_NFTABLES_D = Path("nftables.d")

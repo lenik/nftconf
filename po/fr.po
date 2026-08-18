@@ -2,8 +2,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: nftconf 0.5.0\n"
-"Report-Msgid-Bugs-To: nftconf@bodz.net\n"
-"POT-Creation-Date: 2026-08-01 18:41+0800\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-18 21:28+0800\n"
 "PO-Revision-Date: 2026-08-01 18:50+0800\n"
 "Last-Translator: Lenik <nftconf@bodz.net>\n"
 "Language-Team: fr\n"
@@ -17,6 +17,7 @@ msgid "Declarative nftables config (live reconcile)"
 msgstr "Configuration nftables déclarative (réconciliation live)"
 
 #: nftconf_app/cli.py:55
+#, fuzzy
 msgid ""
 "Conflict policy (load / unload):\n"
 "  default          abort if existing nft settings conflict\n"
@@ -31,10 +32,13 @@ msgid ""
 "\n"
 "Notes:\n"
 "  NAT (nat/dnat/redirect) is handled in prerouting/forward — it does not\n"
-"  open INPUT. Use explicit whitelist/accept for ports that need host delivery\n"
+"  open INPUT. Use explicit whitelist/accept for ports that need host "
+"delivery\n"
 "  (SSH, etc.). With shield on, whitelist rules join the shield allow-list.\n"
 "  dest address / dest interface set defaults for the nat … to … side.\n"
-"  convert writes consolidated nftables.d/*.nft (defines + port sets).\n"
+"  TCP/UDP matches take a port, a range (8000-8080), or a list\n"
+"  (80 443 1080 8000-8080). convert writes nftables.d/*.nft\n"
+"  (defines + port sets).\n"
 msgstr ""
 "Politique de conflit (load / unload) :\n"
 "  défaut            abandonner en cas de conflit avec nft existant\n"
@@ -48,64 +52,67 @@ msgstr ""
 "  --version         afficher la version\n"
 "\n"
 "Notes :\n"
-"  Le NAT (nat/dnat/redirect) est géré en prerouting/forward — n'ouvre pas INPUT.\n"
+"  Le NAT (nat/dnat/redirect) est géré en prerouting/forward — n'ouvre pas "
+"INPUT.\n"
 "  Utiliser whitelist/accept pour les ports livrés à l'hôte (SSH, etc.).\n"
 "  Avec shield on, les whitelists rejoignent la liste d'autorisation.\n"
 "  dest address / dest interface définissent les défauts pour nat … to ….\n"
-"  convert écrit des nftables.d/*.nft consolidés.\n"
+"  TCP/UDP accepte un port, une plage (8000-8080) ou une liste\n"
+"  (80 443 1080 8000-8080). convert écrit des nftables.d/*.nft consolidés.\n"
 
-#: nftconf_app/cli.py:83
+#: nftconf_app/cli.py:85
 msgid "force overwrite/remove on conflict"
 msgstr "forcer l'écrasement/la suppression en cas de conflit"
 
-#: nftconf_app/cli.py:89
+#: nftconf_app/cli.py:91
 msgid "skip conflicting changes"
 msgstr "ignorer les changements en conflit"
 
-#: nftconf_app/cli.py:94
+#: nftconf_app/cli.py:96
 msgid "show actions without applying"
 msgstr "afficher les actions sans les appliquer"
 
-#: nftconf_app/cli.py:97
+#: nftconf_app/cli.py:99
 msgid "reconcile FILE against live nft"
 msgstr "réconcilier FILE avec nft live"
 
-#: nftconf_app/cli.py:101
+#: nftconf_app/cli.py:103
 msgid "remove live rules owned by FILE"
 msgstr "supprimer les règles live appartenant à FILE"
 
-#: nftconf_app/cli.py:105
+#: nftconf_app/cli.py:107
 msgid "show drift vs live nft"
 msgstr "afficher l'écart avec nft live"
 
-#: nftconf_app/cli.py:108
+#: nftconf_app/cli.py:110
 msgid "parse and print resolved rules"
 msgstr "analyser et afficher les règles résolues"
 
-#: nftconf_app/cli.py:111
+#: nftconf_app/cli.py:113
 msgid "alias for check"
 msgstr "alias de check"
 
-#: nftconf_app/cli.py:114
+#: nftconf_app/cli.py:116
 msgid "watch FILE; reconcile on change"
 msgstr "surveiller FILE ; réconcilier aux changements"
 
-#: nftconf_app/cli.py:120 nftconf_app/cli.py:130
+#: nftconf_app/cli.py:122 nftconf_app/cli.py:132
+#, python-format
 msgid "pidfile path (default: %(default)s)"
 msgstr "chemin du pidfile (défaut : %(default)s)"
 
-#: nftconf_app/cli.py:124
+#: nftconf_app/cli.py:126
 msgid "stop daemon"
 msgstr "arrêter le démon"
 
-#: nftconf_app/cli.py:135
+#: nftconf_app/cli.py:137
 msgid "convert nftconf FILE(s) to nftables.d/*.nft"
 msgstr "convertir FILE nftconf en nftables.d/*.nft"
 
-#: nftconf_app/cli.py:142
+#: nftconf_app/cli.py:144
 msgid "output file (single input only); default nftables.d/<stem>.nft"
 msgstr "fichier de sortie (une seule entrée) ; défaut nftables.d/<stem>.nft"
 
-#: nftconf_app/cli.py:146
+#: nftconf_app/cli.py:148
 msgid "show this help"
 msgstr "afficher cette aide"

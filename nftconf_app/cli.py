@@ -68,7 +68,9 @@ def _build_parser() -> argparse.ArgumentParser:
             "  open INPUT. Use explicit whitelist/accept for ports that need host delivery\n"
             "  (SSH, etc.). With shield on, whitelist rules join the shield allow-list.\n"
             "  dest address / dest interface set defaults for the nat … to … side.\n"
-            "  convert writes consolidated nftables.d/*.nft (defines + port sets).\n"
+            "  TCP/UDP matches take a port, a range (8000-8080), or a list\n"
+            "  (80 443 1080 8000-8080). convert writes nftables.d/*.nft\n"
+            "  (defines + port sets).\n"
         ),
     )
 
