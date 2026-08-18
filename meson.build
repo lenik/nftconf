@@ -2,7 +2,7 @@ project(
     'nftconf',
     version: run_command(
         'sh',
-        '-c', 'v=$(git describe --tags --always --dirty 2>/dev/null || true); v=${v#v}; [ -n "$v" ] && printf "%s" "$v" || printf "1.0.1"',
+        '-c', 'v=$(git describe --tags --always --dirty 2>/dev/null || true); v=${v#v}; [ -n "$v" ] && printf "%s" "$v" || printf "0.0.0"',
         check: false,
     ).stdout().strip(),
     license: 'AGPL-3.0-or-later',
@@ -27,6 +27,30 @@ infodir = prefix / get_option('infodir')
 pkgdocdir = datadir / 'doc' / meson.project_name()
 
 subdir('po')
+
+# Substitute meson.project_version() (git describe) into nftconf_app.
+nftconf_app_cdata = configuration_data()
+nftconf_app_cdata.set('VERSION', meson.project_version())
+nftconf_init_py = configure_file(
+    input: 'nftconf_app' / '__init__.py.in',
+    output: 'nftconf_app_init.py',
+    configuration: nftconf_app_cdata,
+)
+install_data(
+    nftconf_init_py,
+    install_dir: py.get_install_dir() / 'nftconf_app',
+    rename: '__init__.py',
+)
+# Uninstalled imports (PYTHONPATH=source, tests, builddir launcher) read
+# nftconf_app/ from the source tree; copy the substituted file there.
+run_command(
+    py,
+    '-c',
+    'import shutil, sys; shutil.copyfile(sys.argv[1], sys.argv[2])',
+    meson.current_build_dir() / 'nftconf_app_init.py',
+    meson.project_source_root() / 'nftconf_app' / '__init__.py',
+    check: true,
+)
 
 nftconf_exe = custom_target(
     'nftconf',
@@ -57,7 +81,7 @@ install_subdir(
     'nftconf_app',
     install_dir: py.get_install_dir(),
     exclude_directories: ['__pycache__'],
-    exclude_files: ['*.pyc'],
+    exclude_files: ['*.pyc', '__init__.py', '__init__.py.in'],
 )
 
 install_data(

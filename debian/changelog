@@ -1,3 +1,20 @@
+nftconf (1.1.0) testing; urgency=medium
+
+  * TCP/UDP (also sctp/dccp) port specs accept a port, an inclusive range,
+    or a space/comma-separated list, e.g. whitelist tcp 80 443 1080 8000-8080.
+    Multiple atoms become one nftables anonymous set; a single atom stays
+    a scalar. The same forms work on nat/dnat/snat/masquerade/redirect
+    before "to".
+  * Reject inverted ranges and ports outside 0–65535; normalize leading
+    zeros. ADDR:PORT on the first item applies to following bare ports.
+  * reject … with TYPE keeps every token after "with" (e.g. tcp reset).
+  * convert expands list dports into $whitelist_ports / $app_ports.
+  * Document the configuration language in full: info manual
+    (docs/nftconf.adoc), guide.md, nftconf(1) and localized man pages,
+    README examples, and demo whitelist comments.
+
+ -- Lenik (谢继雷) <lenik@bodz.net>  Tue, 18 Aug 2026 21:30:16 +0800
+
 nftconf (1.0.1) testing; urgency=medium
 
   * Fix /usr/bin/nftconf ModuleNotFoundError for nftconf_app:

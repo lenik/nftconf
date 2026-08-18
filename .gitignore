@@ -118,6 +118,7 @@ meson-info/
 meson-logs/
 meson-private/
 missing
+nftconf_app/__init__.py
 node_modules/
 nohup.out
 pnpm-lock.yaml
