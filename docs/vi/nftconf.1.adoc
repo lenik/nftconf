@@ -13,99 +13,127 @@ nftconf - cấu hình nftables khai báo với đối soát trực tiếp
 
 == Tóm tắt
 
-*nftconf* [_GLOBAL_]... _CMD_ [_OPTION_]... [_FILE_]...
+*nftconf* [_TOÀN_CỤC_]... _CMD_ [_TÙY_CHỌN_]... [_FILE_]...
 
 == Mô tả
 
 *nftconf* đọc ngôn ngữ cấu hình khai báo ngắn và đối soát với ruleset
-*nftables*(8) đang chạy. Mỗi quy tắc logic có chú thích sở hữu.
+*nftables*(8) đang chạy. Mỗi quy tắc logic có chú thích sở hữu để *load*,
+*unload* và *daemon* chỉ sửa quy tắc của tệp đó.
 
 NAT áp dụng trên prerouting/output/postrouting và *không* mở *INPUT*.
-Cổng giao cho máy chủ cần *whitelist*/*accept* rõ ràng.
+Cổng giao cho máy chủ cần *allow incoming* (hoặc *whitelist*, tùy chọn
+*shield on*).
 
 == Lệnh
 
 *load* _FILE_::
-  Reconcile _FILE_ against the live ruleset. One statement becomes one
-  nft rule. *-c, --compact* packs matching allow/deny into nft sets.
+  Đối soát _FILE_ với ruleset live. Mặc định một câu lệnh thành một quy tắc nft.
+  *-c, --compact* gói allow/deny khớp vào tập nft (hành vi cũ).
 
 *unload* _FILE_::
-  Remove a live rule only when the whole statement matches.
-  *-f, --force* splits a leftover compacted rule and removes as many
-  atoms as possible.
+  Gỡ quy tắc live chỉ khi toàn bộ câu lệnh khớp. *-f, --force* tách quy tắc
+  đã nén còn lại và gỡ càng nhiều nguyên tử càng tốt (nguồn bị rút hoặc sửa).
 
 *status* _FILE_::
-  Show drift between desired and live rules.
+  Hiện lệch giữa mong muốn và live.
 
 *check* _FILE_::
-  Parse and print resolved nft rules.
+  Phân tích và in quy tắc nft đã triển khai (không áp dụng).
 
 *show* _FILE_::
-  Per-statement status (*on*, *N/M*, *---*, *xxx*).
+  In mỗi câu lệnh với cột trạng thái rộng 8: *on* (đầy đủ live), *N/M*
+  (một phần), *---* (chưa tải), *xxx* (lỗi cú pháp).
 
 *daemon* _FILE_::
-  Watch _FILE_ (and includes); reload on change.
-  Default pidfile */run/nftconf.pid*; a second instance refuses to start.
+  Theo dõi _FILE_ (và include) bằng inotify; tải lại khi thay đổi.
+  Pidfile mặc định */run/nftconf.pid*; tiến trình thứ hai bị từ chối.
 
 *stop*::
-  Stop the daemon via the pidfile (*--pid*).
+  Dừng daemon qua pidfile (*--pid*).
 
 *convert* _FILE_...::
-  Write consolidated *nftables.d/\*.nft*.
+  Ghi *nftables.d/\*.nft* gộp (define và tập cổng).
 
 *help*::
-  Show usage.
+  Hiện cách dùng.
 
 == Tùy chọn toàn cục
 
 *-v, --verbose*::
-  Debug logging (repeatable).
+  Nhật ký gỡ lỗi (lặp được).
 
 *-q, --quiet*::
-  Errors only.
+  Chỉ lỗi.
 
 *-h, --help*::
-  Show help.
+  Hiện trợ giúp.
 
 *--version*::
-  Print version and exit.
+  In phiên bản rồi thoát.
 
 == Chính sách xung đột
 
-(default)::
-  Abort if existing nft settings conflict.
+Áp dụng cho *load*, *daemon* và *convert*:
+
+(mặc định)::
+  Hủy nếu cấu hình nft hiện có xung đột.
 
 *-f, --force*::
-  Overwrite conflicting live rules (*load*).
+  Ghi đè quy tắc live xung đột (*load*).
 
 *-n, --no-clobber*::
-  Skip conflicting changes.
+  Bỏ qua thay đổi xung đột.
 
 *--dry-run*::
-  Show actions without applying.
+  Hiện thao tác mà không áp dụng.
 
 *load -c/--compact*::
-  Pack matching statements into nft sets.
+  Gói các câu lệnh khớp vào tập nft.
 
 *unload -f/--force*::
-  Split leftover compacted rules and remove matching atoms.
+  Tách quy tắc đã nén còn lại và gỡ các nguyên tử khớp.
 
 == Ngôn ngữ cấu hình
 
-Một chỉ thị mỗi dòng. Dòng trống bị bỏ qua. *#* bắt đầu chú thích (trừ
-trong ngoặc kép). Token đầu là chỉ thị; tên và từ khóa không phân biệt
-hoa thường. Ngữ cảnh giữ đến chỉ thị ngữ cảnh tiếp theo.
+Một chỉ thị mỗi dòng. Dòng trống bị bỏ qua. *#* bắt đầu chú thích (trừ trong
+dấu ngoặc). Chú thích cùng dòng với câu NAT hoặc lọc được chép vào comment
+quy tắc nft sau thẻ sở hữu. Mã thông báo đầu là tên chỉ thị; tên và từ khóa
+không phân biệt hoa thường. Ngữ cảnh kéo dài đến chỉ thị ngữ cảnh tiếp theo.
+Không có cú pháp khối.
 
 === Ngữ cảnh
 
-*table*, *interface*, *address*, *dest address* / *dest interface*,
-*priority*, *shield on|off*, *include*.
+*table* _TÊN_ [_HỌ_]::
+  Bảng đích (mặc định *nftconf*). Họ *ip* (mặc định), *ip6*, *inet*, *arp*,
+  *bridge*, *netdev*.
+
+*interface* _IFACE_...::
+  Khớp *iifname*; cũng phân giải IPv4 từ các NIC đó cho đến khi có *address*.
+  Một quy tắc mỗi giao diện.
+
+*address* _ADDR_...::
+  Khớp địa chỉ đích (*ip daddr*). Ghi đè phân giải giao diện.
+
+*dest address* / *dest interface*::
+  Phía nội bộ/VIP mặc định cho `nat … to PORT`. *destination* là bí danh
+  của *dest*.
+
+*priority* _TÊN_|_SỐ_::
+  Ưu tiên móc INPUT. Móc NAT bỏ qua.
+
+*shield* *on*|*off*::
+  Danh sách cho phép INPUT mặc định drop cho phạm vi giao diện/địa chỉ hiện tại.
+  Chỉ *on* không mở cổng ứng dụng.
+
+*include* _GLOB_::
+  Gồm tệp (tương đối với tệp gồm); thừa hưởng bản sao ngữ cảnh hiện tại.
 
 === Cổng (tcp / udp / sctp / dccp)
 
-Sau giao thức có cổng: một cổng, khoảng inclusive, hoặc danh sách
-(khoảng trắng và/hoặc dấu phẩy). Một phần tử thành vô hướng/khoảng; hai
-trở lên thành tập ẩn danh nftables.
+Sau giao thức có cổng: một cổng, một khoảng đóng, hoặc danh sách (khoảng trắng
+và/hoặc dấu phẩy). Một phần tử là vô hướng/khoảng; hai trở lên thành tập ẩn
+danh nftables.
 
 ----
 allow incoming tcp 22
@@ -116,56 +144,62 @@ allow outgoing ip 10.0.0.0/8 tcp 443
 nat tcp 80 443 8000-8080 to 10.0.0.50
 ----
 
-Cổng 0–65535; *HIGH* ≥ *LOW*. Tiền tố tùy chọn *ADDR:PORT* (hoặc
-*[IPv6]:PORT*). Không thì *address* / *interface* cung cấp *ip daddr*.
-Danh sách dùng cho filter và NAT (trước *to*), không dùng cho
-*icmp* / *ct*.
+Cổng 0–65535; *HIGH* ≥ *LOW*. Tiền tố tùy chọn *ADDR:PORT* (hoặc *[IPv6]:PORT*).
+Nếu không *address* / *interface* cung cấp *ip daddr*.
 
-=== NAT và filter
+Danh sách dùng cho *allow* / *deny* / *whitelist* / *blacklist* và
+*nat* / *dnat* / *snat* / *masquerade* / *redirect* (trước *to*), không dùng
+cho *icmp* / *ct*.
+
+=== NAT và lọc
 
 *nat* / *dnat* / *snat* _PROTO_ _PORT_... *to* _DEST_, *masquerade*,
 *redirect*. NAT không mở *INPUT*.
 
-*whitelist* / *allow* là bí danh của *accept*. Với *shield on* chúng vào
-chuỗi shield. Mọi token sau *reject … with* được đưa cho nftables
-(*tcp reset*, …).
+*allow incoming* / *deny incoming* (bí danh *whitelist* / *blacklist*)
+áp dụng INPUT. *allow outgoing ip CIDR* [*PROTO* [_PORT_...]] áp dụng OUTPUT;
+bỏ proto/cổng thì khớp mọi lưu lượng tới CIDR đó.
+
+*Một cổng đơn* khớp trước *khoảng*; cùng độ cụ thể thì *allow* thắng *deny*.
+
+Với *shield on*, chính sách vào nằm trong chuỗi khiên.
+
+Mọi thứ sau *reject … with* được chuyển cho nftables (*tcp reset*, …).
 
 Xem *guide.md* và `info nftconf`.
 
 == Tệp
 
 */run/nftconf.pid*::
-  Default daemon pidfile.
+  Pidfile mặc định của daemon.
 
 *nftables.d/\*.nft*::
-  Default *convert* output directory.
+  Thư mục đầu ra mặc định của *convert*.
 
 == Mã thoát
 
-*0*::
-  Success.
+*0*:: Thành công.
 
-*1*::
-  Config/conflict/runtime error.
+*1*:: Lỗi cấu hình/xung đột/thời gian chạy.
 
-*2*::
-  Usage error.
+*2*:: Lỗi cách dùng.
 
 == Xem thêm
 
-*nft*(8), *nftables*(8), *guide.md*, Texinfo (*info nftconf*), and *demo/README.md*.
+*nft*(8), *nftables*(8), *guide.md*, sổ tay Texinfo (*info nftconf*),
+và phòng thí nghiệm Docker *demo/README.md*.
 
 == Lỗi
 
-Report bugs to: <{project-email}>
+Báo cáo tới: <{project-email}>
 
 == Tác giả
 
-Written by {project-author} <{project-email}>.
+Viết bởi {project-author} <{project-email}>.
 
 == Bản quyền
 
 Copyright \(C) {project-year} {project-author}.
-License AGPL-3.0-or-later.
-This project opposes AI exploitation and AI hegemony, and rejects mindless
-MIT-style licensing and politically naive BSD-style licensing.
+Giấy phép AGPL-3.0-or-later.
+Dự án này phản đối bóc lột AI và bá quyền AI, và từ chối giấy phép kiểu MIT
+vô tâm và BSD ngây thơ về chính trị.

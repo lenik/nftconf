@@ -9,101 +9,127 @@ v{project-version}, {project-year}
 
 == ชื่อ
 
-nftconf - การตั้งค่า nftables แบบประกาศพร้อม synchronize สด
+nftconf - การตั้งค่า nftables แบบประกาศพร้อมปรับกับกฎสด
 
 == รูปแบบ
 
-*nftconf* [_GLOBAL_]... _CMD_ [_OPTION_]... [_FILE_]...
+*nftconf* [_ส่วนกลาง_]... _CMD_ [_ตัวเลือก_]... [_FILE_]...
 
 == คำอธิบาย
 
 *nftconf* อ่านภาษากำหนดค่าแบบประกาศแล้วปรับกับกฎ *nftables*(8) ที่ใช้งานอยู่
-แต่ละกฎมีคอมเมนต์ความเป็นเจ้าของ
+แต่ละกฎมีคอมเมนต์ความเป็นเจ้าของ เพื่อให้ *load* / *unload* / *daemon*
+เปลี่ยนเฉพาะกฎของไฟล์นั้น
 
 NAT ทำงานที่ prerouting/output/postrouting และ *ไม่* เปิด *INPUT*
-พอร์ตที่ส่งถึงโฮสต์ต้องมี *whitelist*/*accept* ชัดเจน
+พอร์ตที่ส่งถึงโฮสต์ต้องมี *allow incoming* (หรือ *whitelist* และเลือก *shield on*)
 
 == คำสั่ง
 
 *load* _FILE_::
-  Reconcile _FILE_ against the live ruleset. One statement becomes one
-  nft rule. *-c, --compact* packs matching allow/deny into nft sets.
+  ปรับ _FILE_ กับกฎสด ค่าเริ่มต้นหนึ่งคำสั่งเป็นหนึ่งกฎ nft
+  *-c, --compact* รวม allow/deny ที่เข้ากันเข้า nft set (พฤติกรรมเดิม)
 
 *unload* _FILE_::
-  Remove a live rule only when the whole statement matches.
-  *-f, --force* splits a leftover compacted rule and removes as many
-  atoms as possible.
+  ลบกฎสดเมื่อคำสั่งตรงทั้งก้อนเท่านั้น *-f, --force* แยกกฎที่ถูกบีบอัดเหลืออยู่
+  และลบอะตอมให้ได้มากที่สุด (เมื่อต้นฉบับหดหรือถูกแก้)
 
 *status* _FILE_::
-  Show drift between desired and live rules.
+  แสดงความคลาดเคลื่อนระหว่างที่ต้องการกับกฎสด
 
 *check* _FILE_::
-  Parse and print resolved nft rules.
+  วิเคราะห์และพิมพ์กฎ nft ที่คลี่แล้ว (ไม่นำไปใช้)
 
 *show* _FILE_::
-  Per-statement status (*on*, *N/M*, *---*, *xxx*).
+  พิมพ์แต่ละคำสั่งพร้อมคอลัมน์สถานะกว้าง 8: *on* (มีผลครบ), *N/M* (บางส่วน),
+  *---* (ยังไม่โหลด), *xxx* (ผิดวากยสัมพันธ์)
 
 *daemon* _FILE_::
-  Watch _FILE_ (and includes); reload on change.
-  Default pidfile */run/nftconf.pid*; a second instance refuses to start.
+  เฝ้า _FILE_ (และ include) ด้วย inotify แล้วโหลดใหม่เมื่อเปลี่ยน
+  pidfile เริ่มต้น */run/nftconf.pid* อินสแตนซ์ที่สองจะถูกปฏิเสธ
 
 *stop*::
-  Stop the daemon via the pidfile (*--pid*).
+  หยุดดีมอนผ่าน pidfile (*--pid*)
 
 *convert* _FILE_...::
-  Write consolidated *nftables.d/\*.nft*.
+  เขียน *nftables.d/\*.nft* รวม (define และชุดพอร์ต)
 
 *help*::
-  Show usage.
+  แสดงวิธีใช้
 
-== ตัวเลือกทั่วไป
+== ตัวเลือกส่วนกลาง
 
 *-v, --verbose*::
-  Debug logging (repeatable).
+  บันทึกดีบัก (ซ้ำได้)
 
 *-q, --quiet*::
-  Errors only.
+  เฉพาะข้อผิดพลาด
 
 *-h, --help*::
-  Show help.
+  แสดงวิธีใช้
 
 *--version*::
-  Print version and exit.
+  พิมพ์รุ่นแล้วออก
 
 == นโยบายความขัดแย้ง
 
-(default)::
-  Abort if existing nft settings conflict.
+ใช้กับ *load*, *daemon* และ *convert*:
+
+(ค่าเริ่มต้น)::
+  ยกเลิกถ้าการตั้งค่า nft ที่มีอยู่ขัดแย้ง
 
 *-f, --force*::
-  Overwrite conflicting live rules (*load*).
+  เขียนทับกฎสดที่ขัดแย้ง (*load*)
 
 *-n, --no-clobber*::
-  Skip conflicting changes.
+  ข้ามการเปลี่ยนแปลงที่ขัดแย้ง
 
 *--dry-run*::
-  Show actions without applying.
+  แสดงการกระทำโดยไม่นำไปใช้
 
 *load -c/--compact*::
-  Pack matching statements into nft sets.
+  รวมคำสั่งที่เข้ากันเข้า nft set
 
 *unload -f/--force*::
-  Split leftover compacted rules and remove matching atoms.
+  แยกกฎที่ถูกบีบอัดเหลืออยู่และลบอะตอมที่ตรงกัน
 
-== ภาษาคอนฟิก
+== ภาษากำหนดค่า
 
-คำสั่งละบรรทัด บรรทัดว่างถูกละเว้น *#* เริ่มหมายเหตุ (ยกเว้นในเครื่องหมายคำพูด)
-โทเคนแรกคือคำสั่ง ชื่อและคำสำคัญไม่แยกตัวพิมพ์ บริบทใช้ได้จนกว่าจะมีคำสั่งบริบทถัดไป
+หนึ่งคำสั่งต่อบรรทัด บรรทัดว่างถูกละเว้น *#* เริ่มความเห็น (ยกเว้นในอัญประกาศ)
+ความเห็นบรรทัดเดียวกับคำสั่ง NAT หรือตัวกรองจะถูกคัดลอกไปยังคอมเมนต์กฎ nft
+หลังแท็กเจ้าของ โทเคนแรกคือชื่อคำสั่ง ชื่อและคำสำคัญไม่แยกตัวพิมพ์
+บริบทใช้ได้จนถึงคำสั่งบริบทถัดไป ไม่มีวากยสัมพันธ์แบบบล็อก
 
 === บริบท
 
-*table*, *interface*, *address*, *dest address* / *dest interface*,
-*priority*, *shield on|off*, *include*.
+*table* _ชื่อ_ [_ตระกูล_]::
+  ตารางเป้าหมาย (ค่าเริ่มต้น *nftconf*) ตระกูล *ip* (ค่าเริ่มต้น), *ip6*,
+  *inet*, *arp*, *bridge*, *netdev*
+
+*interface* _IFACE_...::
+  จับคู่ *iifname* และแปลง IPv4 จาก NIC เหล่านั้นจนกว่าจะมี *address*
+  หนึ่งกฎต่ออินเทอร์เฟซ
+
+*address* _ADDR_...::
+  จับคู่ที่อยู่ปลายทาง (*ip daddr*) ทับการแปลงจากอินเทอร์เฟซ
+
+*dest address* / *dest interface*::
+  ด้านภายใน/VIP เริ่มต้นของ `nat … to PORT` *destination* เป็นนามแฝงของ *dest*
+
+*priority* _ชื่อ_|_ตัวเลข_::
+  ลำดับความสำคัญของฮุก INPUT ฮุก NAT ไม่ใช้ค่านี้
+
+*shield* *on*|*off*::
+  รายการอนุญาต INPUT ที่ทิ้งเป็นค่าเริ่มต้นสำหรับขอบเขตอินเทอร์เฟซ/ที่อยู่ปัจจุบัน
+  *on* เดี่ยวไม่เปิดพอร์ตแอป
+
+*include* _GLOB_::
+  รวมไฟล์ (สัมพัทธ์กับไฟล์ที่รวม) สืบทอดสำเนาบริบทปัจจุบัน
 
 === พอร์ต (tcp / udp / sctp / dccp)
 
-หลังโปรโตคอลที่มีพอร์ต: พอร์ตเดียว, ช่วงรวมปลาย, หรือรายการ (ช่องว่างและ/หรือจุลภาค)
-หนึ่งรายการเป็นสเกลาร์/ช่วง สองรายการขึ้นไปเป็นเซตนามแฝง nftables
+หลังโปรโตคอลที่มีพอร์ต: พอร์ต ช่วงปิด หรือรายการ (ช่องว่างและ/หรือจุลภาค)
+หนึ่งรายการเป็นสเกลาร์/ช่วง สองรายการขึ้นไปเป็นเซ็ตนิรนาม nftables
 
 ----
 allow incoming tcp 22
@@ -115,53 +141,61 @@ nat tcp 80 443 8000-8080 to 10.0.0.50
 ----
 
 พอร์ต 0–65535; *HIGH* ≥ *LOW* คำนำหน้า *ADDR:PORT* (หรือ *[IPv6]:PORT*) ได้
-มิฉะนั้น *address* / *interface* ให้ *ip daddr* รายการใช้กับ filter และ NAT
-(ก่อน *to*) ไม่ใช้กับ *icmp* / *ct*
+มิฉะนั้น *address* / *interface* ให้ *ip daddr*
+
+รายการใช้ได้กับ *allow* / *deny* / *whitelist* / *blacklist* และ
+*nat* / *dnat* / *snat* / *masquerade* / *redirect* (ก่อน *to*) ไม่ใช้กับ
+*icmp* / *ct*
 
 === NAT และตัวกรอง
 
 *nat* / *dnat* / *snat* _PROTO_ _PORT_... *to* _DEST_, *masquerade*,
-*redirect*. NAT ไม่เปิด *INPUT*
+*redirect* NAT ไม่เปิด *INPUT*
 
-*whitelist* / *allow* เป็นนามแฝงของ *accept* เมื่อ *shield on* จะเข้าสู่สาย
-shield ทุกโทเคนหลัง *reject … with* ส่งให้ nftables (*tcp reset*, …)
+*allow incoming* / *deny incoming* (นามแฝง *whitelist* / *blacklist*)
+ใช้กับ INPUT *allow outgoing ip CIDR* [*PROTO* [_PORT_...]] ใช้กับ OUTPUT
+ถ้าไม่ระบุโปรโตคอล/พอร์ตจะจับจราจรทั้งหมดไปยัง CIDR นั้น
+
+*พอร์ตเดี่ยว* จับก่อน *ช่วง*; ความจำเพาะเท่ากัน *allow* ชนะ *deny*
+
+เมื่อ *shield on* นโยบายขาเข้าเข้าสู่โซ่เกราะ
+
+ทุกอย่างหลัง *reject … with* ส่งให้ nftables (*tcp reset* ฯลฯ)
 
 ดู *guide.md* และ `info nftconf`
 
 == ไฟล์
 
 */run/nftconf.pid*::
-  Default daemon pidfile.
+  pidfile เริ่มต้นของดีมอน
 
 *nftables.d/\*.nft*::
-  Default *convert* output directory.
+  ไดเรกทอรีผลลัพธ์เริ่มต้นของ *convert*
 
 == สถานะออก
 
-*0*::
-  Success.
+*0*:: สำเร็จ
 
-*1*::
-  Config/conflict/runtime error.
+*1*:: ข้อผิดพลาดการตั้งค่า/ความขัดแย้ง/รันไทม์
 
-*2*::
-  Usage error.
+*2*:: ข้อผิดพลาดการใช้งาน
 
 == ดูเพิ่ม
 
-*nft*(8), *nftables*(8), *guide.md*, Texinfo (*info nftconf*), and *demo/README.md*.
+*nft*(8), *nftables*(8), *guide.md*, คู่มือ Texinfo (*info nftconf*),
+และห้องทดลอง Docker *demo/README.md*
 
-== บั๊ก
+== ข้อบกพร่อง
 
-Report bugs to: <{project-email}>
+รายงานที่: <{project-email}>
 
 == ผู้เขียน
 
-Written by {project-author} <{project-email}>.
+เขียนโดย {project-author} <{project-email}>
 
 == ลิขสิทธิ์
 
 Copyright \(C) {project-year} {project-author}.
-License AGPL-3.0-or-later.
-This project opposes AI exploitation and AI hegemony, and rejects mindless
-MIT-style licensing and politically naive BSD-style licensing.
+สัญญาอนุญาต AGPL-3.0-or-later
+โครงการนี้คัดค้านการแสวงประโยชน์และอำนาจครอบงำของ AI และปฏิเสธสัญญาอนุญาต
+แบบ MIT ที่ไร้ความคิดและแบบ BSD ที่ไร้เดียงสาทางการเมือง

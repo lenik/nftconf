@@ -1,10 +1,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: nftconf 0.5.0\n"
+"Project-Id-Version: nftconf 1.3.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-08-19 10:24+0800\n"
-"PO-Revision-Date: 2026-08-01 18:50+0800\n"
+"PO-Revision-Date: 2026-08-19 10:50+0800\n"
 "Last-Translator: Lenik <nftconf@bodz.net>\n"
 "Language-Team: de\n"
 "Language: de\n"
@@ -17,7 +17,6 @@ msgid "Declarative nftables config (live reconcile)"
 msgstr "Deklarative nftables-Konfiguration (Live-Abgleich)"
 
 #: nftconf_app/cli.py:56
-#, fuzzy
 msgid ""
 "Conflict policy (load / daemon):\n"
 "  default          abort if existing nft settings conflict\n"
@@ -47,10 +46,16 @@ msgid ""
 "  (80 443 1080 8000-8080). convert writes nftables.d/*.nft\n"
 "  (defines + port sets).\n"
 msgstr ""
-"Konfliktpolitik (load / unload):\n"
+"Konfliktpolitik (load / daemon):\n"
 "  Standard          Abbruch bei Konflikt mit bestehenden nft-Einstellungen\n"
-"  -f, --force       überschreiben (load) bzw. trotzdem entfernen (unload)\n"
+"  -f, --force       konfliktierende Live-Regeln überschreiben (load)\n"
 "  -n, --no-clobber  konfliktierende Änderungen überspringen\n"
+"\n"
+"load -c/--compact fasst passende allow/deny-Anweisungen in nft-Sets zusammen.\n"
+"unload entfernt eine Anweisung nur bei vollständiger Übereinstimmung;\n"
+"unload -f/--force zerlegt eine übrig gebliebene kompakte Regel und entfernt\n"
+"so viele Atome wie möglich.\n"
+"show gibt jede Anweisung mit Status aus: on, N/M, ---, xxx.\n"
 "\n"
 "Globale Optionen (vor oder nach CMD):\n"
 "  -v, --verbose     DEBUG-Protokoll\n"
@@ -60,16 +65,19 @@ msgstr ""
 "\n"
 "Hinweise:\n"
 "  NAT (nat/dnat/redirect) läuft in prerouting/forward — öffnet INPUT nicht.\n"
-"  Für Host-Zustellung explizit whitelist/accept nutzen (z. B. SSH).\n"
-"  Mit shield on gehören Whitelist-Regeln zur Allow-Liste.\n"
+"  Für Host-Zustellung allow incoming / whitelist nutzen (z. B. SSH).\n"
+"  deny incoming verwirft einen Port; allow outgoing ip CIDR [tcp/udp PORT...]\n"
+"  filtert OUTPUT (ohne Ports: gesamter Verkehr zu diesem CIDR).\n"
+"  Ein einzelner Port schlägt einen Bereich; bei gleicher Spezifität gilt\n"
+"  allow vor deny.\n"
 "  dest address / dest interface setzen Defaults für nat … to ….\n"
 "  TCP/UDP akzeptiert einen Port, einen Bereich (8000-8080) oder eine Liste\n"
-"  (80 443 1080 8000-8080). convert schreibt konsolidierte nftables.d/*.nft.\n"
+"  (80 443 1080 8000-8080). convert schreibt nftables.d/*.nft\n"
+"  (Defines und Port-Sets).\n"
 
 #: nftconf_app/cli.py:94
-#, fuzzy
 msgid "force overwrite on conflict"
-msgstr "Bei Konflikt überschreiben/entfernen"
+msgstr "bei Konflikt überschreiben"
 
 #: nftconf_app/cli.py:100
 msgid "skip conflicting changes"
@@ -85,29 +93,27 @@ msgstr "FILE mit Live-nft abgleichen"
 
 #: nftconf_app/cli.py:114 nftconf_app/cli.py:157
 msgid "pack matching statements into nft sets"
-msgstr ""
+msgstr "passende Anweisungen in nft-Sets zusammenfassen"
 
 #: nftconf_app/cli.py:118
-#, fuzzy
 msgid "remove live rules for FILE statements"
-msgstr "Von FILE besessene Live-Regeln entfernen"
+msgstr "Live-Regeln zu Anweisungen in FILE entfernen"
 
 #: nftconf_app/cli.py:124
 msgid "split leftover compacted rules and remove matching atoms"
-msgstr ""
+msgstr "übrig gebliebene kompakte Regeln zerlegen und passende Atome entfernen"
 
 #: nftconf_app/cli.py:132
 msgid "show drift vs live nft"
 msgstr "Abweichung zum Live-nft anzeigen"
 
 #: nftconf_app/cli.py:135
-#, fuzzy
 msgid "parse and print resolved nft rules"
-msgstr "Aufgelöste Regeln parsen und anzeigen"
+msgstr "aufgelöste nft-Regeln parsen und anzeigen"
 
 #: nftconf_app/cli.py:140
 msgid "print each statement with live status"
-msgstr ""
+msgstr "jede Anweisung mit Live-Status ausgeben"
 
 #: nftconf_app/cli.py:144
 msgid "watch FILE; reconcile on change"

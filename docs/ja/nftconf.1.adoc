@@ -9,11 +9,11 @@ v{project-version}, {project-year}
 
 == 名前
 
-nftconf - 宣言的 nftables 設定とライブ調整
+nftconf - 宣言的 nftables 設定とライブ突合
 
 == 書式
 
-*nftconf* [_GLOBAL_]... _CMD_ [_OPTION_]... [_FILE_]...
+*nftconf* [_グローバル_]... _CMD_ [_オプション_]... [_FILE_]...
 
 == 説明
 
@@ -21,91 +21,106 @@ nftconf - 宣言的 nftables 設定とライブ調整
 各論理ルールには所有コメントが付き、*load* / *unload* / *daemon* は当該設定のルールだけを変更します。
 
 NAT は prerouting/output/postrouting に作用し、*INPUT* は開きません。
-ホスト配送が必要なポートには明示的な *whitelist*/*accept*（任意で *shield on*）が必要です。
+ホスト配送が必要なポートには明示的な *allow incoming*（または *whitelist*、任意で *shield on*）が必要です。
 
 == コマンド
 
 *load* _FILE_::
-  Reconcile _FILE_ against the live ruleset. One statement becomes one
-  nft rule. *-c, --compact* packs matching allow/deny into nft sets.
+  _FILE_ をライブ規則と突合します。既定では 1 文が 1 つの nft 規則になります。
+  *-c, --compact* は一致する allow/deny を nft 集合にまとめます（以前の動作）。
 
 *unload* _FILE_::
-  Remove a live rule only when the whole statement matches.
-  *-f, --force* splits a leftover compacted rule and removes as many
-  atoms as possible.
+  文全体がライブ規則と一致するときだけ削除します。*-f, --force* は残った圧縮規則を分解し、可能な限り多くの原子を削除します（元ファイルの短縮・編集時）。
 
 *status* _FILE_::
-  Show drift between desired and live rules.
+  期待とライブの差分を表示します。
 
 *check* _FILE_::
-  Parse and print resolved nft rules.
+  展開済み nft 規則を解析して表示します（適用しません）。
 
 *show* _FILE_::
-  Per-statement status (*on*, *N/M*, *---*, *xxx*).
+  各文の左に幅 8 の状態列を付けます。*on*（完全に有効）、*N/M*（部分的）、
+  *---*（未ロード）、*xxx*（構文エラー）。
 
 *daemon* _FILE_::
-  Watch _FILE_ (and includes); reload on change.
-  Default pidfile */run/nftconf.pid*; a second instance refuses to start.
+  _FILE_（および include）を inotify で監視し、変更時に再読み込みします。
+  既定の pidfile は */run/nftconf.pid* で、第二インスタンスは起動しません。
 
 *stop*::
-  Stop the daemon via the pidfile (*--pid*).
+  pidfile（*--pid*）経由でデーモンを停止します。
 
 *convert* _FILE_...::
-  Write consolidated *nftables.d/\*.nft*.
+  まとめた *nftables.d/\*.nft*（マクロ定義とポート集合）を書き出します。
 
 *help*::
-  Show usage.
+  使い方を表示します。
 
 == グローバルオプション
 
 *-v, --verbose*::
-  Debug logging (repeatable).
+  デバッグログ（繰り返し可）。
 
 *-q, --quiet*::
-  Errors only.
+  エラーのみ。
 
 *-h, --help*::
-  Show help.
+  ヘルプを表示。
 
 *--version*::
-  Print version and exit.
+  バージョンを出して終了。
 
 == 競合ポリシー
 
-(default)::
-  Abort if existing nft settings conflict.
+*load*、*daemon*、*convert* に適用します。
+
+（既定）::
+  既存の nft 設定と競合すれば中止。
 
 *-f, --force*::
-  Overwrite conflicting live rules (*load*).
+  競合するライブ規則を上書き（*load*）。
 
 *-n, --no-clobber*::
-  Skip conflicting changes.
+  競合する変更をスキップ。
 
 *--dry-run*::
-  Show actions without applying.
+  適用せずに動作だけ表示。
 
 *load -c/--compact*::
-  Pack matching statements into nft sets.
+  一致する文を nft 集合にまとめる。
 
 *unload -f/--force*::
-  Split leftover compacted rules and remove matching atoms.
+  残った圧縮規則を分解し、一致する原子を削除。
 
 == 設定言語
 
-One directive per line. Blank lines ignored. *#* starts a comment (unless
-quoted). The first token is the directive; names and keywords are
-case-insensitive. Context lasts until the next context directive.
+1 行に 1 指令。空行は無視。*#* はコメント（引用符内を除く）。NAT またはフィルタ文と同じ行のコメントは、所有タグの後の nft 規則コメントにコピーされます。最初のトークンが指令名。名前とキーワードは大文字小文字を区別しません。文脈は次の文脈指令まで続きます。ブロック構文はありません。
 
-=== Context
+=== 文脈
 
-*table*, *interface*, *address*, *dest address* / *dest interface*,
-*priority*, *shield on|off*, *include*.
+*table* _名前_ [_ファミリ_]::
+  対象テーブル（既定 *nftconf*）。ファミリは *ip*（既定）、*ip6*、*inet*、*arp*、*bridge*、*netdev*。
 
-=== Ports (tcp / udp / sctp / dccp)
+*interface* _IFACE_...::
+  *iifname* に一致。*address* が来るまでそれらの NIC の IPv4 を解決。インタフェースごとに 1 規則。
 
-After a portful protocol: a port, an inclusive range, or a list (spaces
-and/or commas). One atom is a scalar/range; two or more become an
-nftables anonymous set.
+*address* _ADDR_...::
+  宛先アドレス一致（*ip daddr*）。インタフェース解決を上書き。
+
+*dest address* / *dest interface*::
+  `nat … to PORT` の既定の内側/VIP 側。*destination* は *dest* の別名。
+
+*priority* _名_|_数_::
+  INPUT フック優先度。NAT フックは無視。
+
+*shield* *on*|*off*::
+  現在のインタフェース/アドレス範囲の既定ドロップ INPUT 許可リスト。*on* だけではアプリポートは開きません。
+
+*include* _GLOB_::
+  ファイルを取り込む（取り込み元からの相対）。現在の文脈のコピーを継承。
+
+=== ポート（tcp / udp / sctp / dccp）
+
+ポート付きプロトコルの後に、ポート、閉区間、またはリスト（空白および/またはカンマ）。1 個はスカラー/範囲、2 個以上は nftables 匿名集合。
 
 ----
 allow incoming tcp 22
@@ -116,55 +131,54 @@ allow outgoing ip 10.0.0.0/8 tcp 443
 nat tcp 80 443 8000-8080 to 10.0.0.50
 ----
 
-Ports 0–65535; *HIGH* ≥ *LOW*. Optional *ADDR:PORT* (or *[IPv6]:PORT*)
-prefix. Otherwise *address* / *interface* supply *ip daddr*. Lists apply
-to filter and NAT (before *to*), not *icmp* / *ct*.
+ポートは 0–65535。*HIGH* は *LOW* 以上。任意の *ADDR:PORT*（または *[IPv6]:PORT*）がリストの接頭辞。それ以外は *address* / *interface* が *ip daddr* を供給。
 
-=== NAT and filter
+リストは *allow* / *deny* / *whitelist* / *blacklist* および *nat* / *dnat* / *snat* / *masquerade* / *redirect*（*to* の前）で使えます。*icmp* / *ct* では使いません。
 
-*nat* / *dnat* / *snat* _PROTO_ _PORT_... *to* _DEST_, *masquerade*,
-*redirect*. NAT does not open *INPUT*.
+=== NAT とフィルタ
 
-*whitelist* / *allow* alias *accept*. With *shield on* they join the
-shield chain. Everything after *reject … with* is passed to nftables
-(*tcp reset*, …).
+*nat* / *dnat* / *snat* _PROTO_ _PORT_... *to* _DEST_、*masquerade*、*redirect*。NAT は *INPUT* を開きません。
 
-See *guide.md* and `info nftconf`.
+*allow incoming* / *deny incoming*（別名 *whitelist* / *blacklist*）は INPUT。*allow outgoing ip CIDR* [*PROTO* [_PORT_...]] は OUTPUT。プロトコル/ポートを省略するとその CIDR への全トラフィック。
+
+*単一ポート* は *範囲* より先に一致し、同じ具体度では *allow* が *deny* に勝ちます。
+
+*shield on* では受信ポリシーがシールド鎖に入ります。
+
+*reject … with* の後はすべて nftables に渡されます（*tcp reset* など）。
+
+詳細は *guide.md* と `info nftconf`。
 
 == ファイル
 
 */run/nftconf.pid*::
-  Default daemon pidfile.
+  デーモンの既定 pidfile。
 
 *nftables.d/\*.nft*::
-  Default *convert* output directory.
+  *convert* の既定出力ディレクトリ。
 
 == 終了ステータス
 
-*0*::
-  Success.
+*0*:: 成功。
 
-*1*::
-  Config/conflict/runtime error.
+*1*:: 設定/競合/実行時エラー。
 
-*2*::
-  Usage error.
+*2*:: 使い方の誤り。
 
 == 関連項目
 
-*nft*(8), *nftables*(8), *guide.md*, Texinfo (*info nftconf*), and *demo/README.md*.
+*nft*(8)、*nftables*(8)、*guide.md*、Texinfo マニュアル（*info nftconf*）、Docker 実験 *demo/README.md*。
 
 == バグ
 
-Report bugs to: <{project-email}>
+報告先: <{project-email}>
 
 == 著者
 
-Written by {project-author} <{project-email}>.
+{project-author} <{project-email}> が執筆。
 
 == 著作権
 
 Copyright \(C) {project-year} {project-author}.
-License AGPL-3.0-or-later.
-This project opposes AI exploitation and AI hegemony, and rejects mindless
-MIT-style licensing and politically naive BSD-style licensing.
+ライセンス AGPL-3.0-or-later。
+本プロジェクトは AI 搾取と AI 覇権に反対し、無思慮な MIT 式および政治的に素朴な BSD 式ライセンスを拒みます。

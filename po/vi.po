@@ -1,10 +1,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: nftconf 0.5.0\n"
+"Project-Id-Version: nftconf 1.3.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-08-19 10:24+0800\n"
-"PO-Revision-Date: 2026-08-01 18:50+0800\n"
+"PO-Revision-Date: 2026-08-19 10:50+0800\n"
 "Last-Translator: Lenik <nftconf@bodz.net>\n"
 "Language-Team: vi\n"
 "Language: vi\n"
@@ -17,7 +17,6 @@ msgid "Declarative nftables config (live reconcile)"
 msgstr "Cấu hình nftables khai báo (đối soát trực tiếp)"
 
 #: nftconf_app/cli.py:56
-#, fuzzy
 msgid ""
 "Conflict policy (load / daemon):\n"
 "  default          abort if existing nft settings conflict\n"
@@ -47,29 +46,36 @@ msgid ""
 "  (80 443 1080 8000-8080). convert writes nftables.d/*.nft\n"
 "  (defines + port sets).\n"
 msgstr ""
-"Chính sách xung đột (load / unload):\n"
-"  mặc định          dừng nếu xung đột với nft hiện có\n"
-"  -f, --force       ghi đè (load) hoặc vẫn xóa (unload)\n"
+"Chính sách xung đột (load / daemon):\n"
+"  mặc định          hủy nếu cấu hình nft hiện có xung đột\n"
+"  -f, --force       ghi đè quy tắc live xung đột (load)\n"
 "  -n, --no-clobber  bỏ qua thay đổi xung đột\n"
+"\n"
+"load -c/--compact gói các câu allow/deny khớp vào tập nft.\n"
+"unload chỉ gỡ khi toàn bộ quy tắc live khớp câu lệnh;\n"
+"unload -f/--force tách quy tắc đã nén còn lại và gỡ càng nhiều nguyên tử càng tốt.\n"
+"show in mỗi câu lệnh kèm trạng thái: on, N/M, ---, xxx.\n"
 "\n"
 "Tùy chọn toàn cục (trước hoặc sau CMD):\n"
 "  -v, --verbose     nhật ký DEBUG\n"
 "  -q, --quiet       chỉ lỗi\n"
-"  -h, --help        trợ giúp\n"
-"  --version         phiên bản\n"
+"  -h, --help        hiện trợ giúp\n"
+"  --version         hiện phiên bản\n"
 "\n"
 "Ghi chú:\n"
 "  NAT (nat/dnat/redirect) xử lý ở prerouting/forward — không mở INPUT.\n"
-"  Dùng whitelist/accept cho cổng giao host (SSH, v.v.).\n"
-"  Với shield on, whitelist vào allow-list.\n"
-"  dest address / dest interface là mặc định cho nat … to ….\n"
+"  Cổng giao cho máy chủ dùng allow incoming / whitelist (SSH, v.v.).\n"
+"  deny incoming hủy một cổng; allow outgoing ip CIDR [tcp/udp PORT...]\n"
+"  lọc OUTPUT (bỏ cổng = mọi lưu lượng tới CIDR đó).\n"
+"  Một cổng đơn thắng một khoảng; cùng độ cụ thể thì allow thắng deny.\n"
+"  dest address / dest interface đặt mặc định cho phía nat … to ….\n"
 "  TCP/UDP nhận một cổng, một khoảng (8000-8080), hoặc danh sách\n"
-"  (80 443 1080 8000-8080). convert ghi nftables.d/*.nft.\n"
+"  (80 443 1080 8000-8080). convert ghi nftables.d/*.nft\n"
+"  (define và tập cổng).\n"
 
 #: nftconf_app/cli.py:94
-#, fuzzy
 msgid "force overwrite on conflict"
-msgstr "buộc ghi đè/xóa khi xung đột"
+msgstr "buộc ghi đè khi xung đột"
 
 #: nftconf_app/cli.py:100
 msgid "skip conflicting changes"
@@ -81,37 +87,35 @@ msgstr "hiện thao tác mà không áp dụng"
 
 #: nftconf_app/cli.py:108
 msgid "reconcile FILE against live nft"
-msgstr "đối soát FILE với nft đang chạy"
+msgstr "đối soát FILE với nft live"
 
 #: nftconf_app/cli.py:114 nftconf_app/cli.py:157
 msgid "pack matching statements into nft sets"
-msgstr ""
+msgstr "gói các câu lệnh khớp vào tập nft"
 
 #: nftconf_app/cli.py:118
-#, fuzzy
 msgid "remove live rules for FILE statements"
-msgstr "xóa quy tắc live thuộc FILE"
+msgstr "gỡ quy tắc live của các câu lệnh trong FILE"
 
 #: nftconf_app/cli.py:124
 msgid "split leftover compacted rules and remove matching atoms"
-msgstr ""
+msgstr "tách quy tắc đã nén còn lại và gỡ các nguyên tử khớp"
 
 #: nftconf_app/cli.py:132
 msgid "show drift vs live nft"
 msgstr "hiện lệch so với nft live"
 
 #: nftconf_app/cli.py:135
-#, fuzzy
 msgid "parse and print resolved nft rules"
-msgstr "phân tích và in quy tắc đã giải"
+msgstr "phân tích và in quy tắc nft đã triển khai"
 
 #: nftconf_app/cli.py:140
 msgid "print each statement with live status"
-msgstr ""
+msgstr "in mỗi câu lệnh kèm trạng thái live"
 
 #: nftconf_app/cli.py:144
 msgid "watch FILE; reconcile on change"
-msgstr "theo dõi FILE; đối soát khi đổi"
+msgstr "theo dõi FILE; đối soát khi thay đổi"
 
 #: nftconf_app/cli.py:150 nftconf_app/cli.py:166
 #, python-format
@@ -124,11 +128,11 @@ msgstr "dừng daemon"
 
 #: nftconf_app/cli.py:171
 msgid "convert nftconf FILE(s) to nftables.d/*.nft"
-msgstr "chuyển FILE nftconf sang nftables.d/*.nft"
+msgstr "chuyển FILE nftconf thành nftables.d/*.nft"
 
 #: nftconf_app/cli.py:178
 msgid "output file (single input only); default nftables.d/<stem>.nft"
-msgstr "tệp xuất (chỉ một đầu vào); mặc định nftables.d/<stem>.nft"
+msgstr "tệp đầu ra (chỉ một đầu vào); mặc định nftables.d/<stem>.nft"
 
 #: nftconf_app/cli.py:182
 msgid "show this help"

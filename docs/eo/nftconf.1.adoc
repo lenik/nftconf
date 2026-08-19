@@ -13,100 +13,131 @@ nftconf - deklara nftables-agordo kun viva kunigo
 
 == Sintakso
 
-*nftconf* [_GLOBAL_]... _CMD_ [_OPTION_]... [_FILE_]...
+*nftconf* [_MALLOKA_]... _CMD_ [_OPCIO_]... [_FILE_]...
 
 == Priskribo
 
 *nftconf* legas mallongan deklaran agordon kaj kunigas ĝin kun la viva
-*nftables*(8)-reguloj. Ĉiu logika regulo havas posedan komenton.
+*nftables*(8)-reguloj. Ĉiu logika regulo havas posedan komenton, tiel ke
+*load*, *unload* kaj *daemon* ŝanĝas nur regulojn de tiu dosiero.
 
 NAT funkcias ĉe prerouting/output/postrouting kaj *ne* malfermas *INPUT*.
-Gastigantaj pordoj bezonas eksplicitan *whitelist*/*accept*.
+Gastigantaj pordoj bezonas eksplicitan *allow incoming* (aŭ *whitelist*,
+laŭvole *shield on*).
 
 == Komandoj
 
 *load* _FILE_::
-  Reconcile _FILE_ against the live ruleset. One statement becomes one
-  nft rule. *-c, --compact* packs matching allow/deny into nft sets.
+  Kunigas _FILE_ kun la vivaj reguloj. Implicite unu frazo fariĝas unu
+  nft-regulo. *-c, --compact* pakas kongruajn allow/deny en nft-arojn
+  (antaŭa konduto).
 
 *unload* _FILE_::
-  Remove a live rule only when the whole statement matches.
-  *-f, --force* splits a leftover compacted rule and removes as many
-  atoms as possible.
+  Forigas vivan regulon nur kiam la tuta frazo kongruas. *-f, --force*
+  disigas restantan kompaktigitan regulon kaj forigas kiom eble da atomoj
+  (fonto mallongigita aŭ ŝanĝita).
 
 *status* _FILE_::
-  Show drift between desired and live rules.
+  Montras diferencon inter dezirataj kaj vivaj reguloj.
 
 *check* _FILE_::
-  Parse and print resolved nft rules.
+  Analizas kaj presas solvitajn nft-regulojn (sen apliki).
 
 *show* _FILE_::
-  Per-statement status (*on*, *N/M*, *---*, *xxx*).
+  Presas ĉiun frazon kun 8-larĝa stata kolumno: *on* (tute viva),
+  *N/M* (parta), *---* (ne ŝargita), *xxx* (sintaksa eraro).
 
 *daemon* _FILE_::
-  Watch _FILE_ (and includes); reload on change.
-  Default pidfile */run/nftconf.pid*; a second instance refuses to start.
+  Observas _FILE_ (kaj include) per inotify; reŝargas ĉe ŝanĝo.
+  Implicita pidfile */run/nftconf.pid*; dua instanco estas rifuzata.
 
 *stop*::
-  Stop the daemon via the pidfile (*--pid*).
+  Haltigas la demonon per la pidfile (*--pid*).
 
 *convert* _FILE_...::
-  Write consolidated *nftables.d/\*.nft*.
+  Skribas kunigitajn *nftables.d/\*.nft* (difinoj kaj pordaroj).
 
 *help*::
-  Show usage.
+  Montras uzon.
 
-== Ĝeneralaj opcioj
+== Mallokaj opcioj
 
 *-v, --verbose*::
-  Debug logging (repeatable).
+  Sencimiga protokolo (ripetebla).
 
 *-q, --quiet*::
-  Errors only.
+  Nur eraroj.
 
 *-h, --help*::
-  Show help.
+  Montri helpon.
 
 *--version*::
-  Print version and exit.
+  Presi version kaj eliri.
 
 == Konfliktopolitiko
 
-(default)::
-  Abort if existing nft settings conflict.
+Validas por *load*, *daemon* kaj *convert*:
+
+(implicite)::
+  Ĉesigi se ekzistantaj nft-agordoj konfliktas.
 
 *-f, --force*::
-  Overwrite conflicting live rules (*load*).
+  Anstataŭigi konfliktajn vivajn regulojn (*load*).
 
 *-n, --no-clobber*::
-  Skip conflicting changes.
+  Preterlasi konfliktajn ŝanĝojn.
 
 *--dry-run*::
-  Show actions without applying.
+  Montri agojn sen apliki.
 
 *load -c/--compact*::
-  Pack matching statements into nft sets.
+  Paki kongruajn frazojn en nft-arojn.
 
 *unload -f/--force*::
-  Split leftover compacted rules and remove matching atoms.
+  Disigi restantajn kompaktigitajn regulojn kaj forigi kongruajn atomojn.
 
-== Agorda lingvo
+== Agordolingvo
 
-Unu direktivo en linio. Malplenaj linioj estas ignorataj. *#* komencas
-komenton (krom en citiloj). La unua ĵetono estas la direktivo; nomoj kaj
-ŝlosilvortoj estas usklec-sendependaj. Kunteksto daŭras ĝis la sekva
-kunteksta direktivo.
+Unu direktivo po linio. Malplenaj linioj estas ignorataj. *#* komencas
+komenton (krom en citiloj). Komento sur la sama linio kiel NAT- aŭ
+filtrila frazo estas kopiata en la nft-regulon post la poseda etikedo.
+La unua ĵetono estas la direktivo; nomoj kaj ŝlosilvortoj ne distingas
+usklecon. Kunteksto daŭras ĝis la sekva kunteksta direktivo. Ne estas
+bloka sintakso.
 
 === Kunteksto
 
-*table*, *interface*, *address*, *dest address* / *dest interface*,
-*priority*, *shield on|off*, *include*.
+*table* _NOMO_ [_FAMILIO_]::
+  Cela tabelo (implicite *nftconf*). Familio *ip* (implicite), *ip6*,
+  *inet*, *arp*, *bridge*, *netdev*.
+
+*interface* _IFACE_...::
+  Kongruigi *iifname*; ankaŭ solvi IPv4 de tiuj NIC ĝis *address*.
+  Unu regulo po interfaco.
+
+*address* _ADDR_...::
+  Celdirekta kongruo (*ip daddr*). Anstataŭas interfacan solvon.
+
+*dest address* / *dest interface*::
+  Implicita interna/VIP-flanko por `nat … to PORT`. *destination* estas
+  kromnomo de *dest*.
+
+*priority* _NOMO_|_NOMBRO_::
+  Prioritato de INPUT-hoko. NAT-hokoj ignoras tion.
+
+*shield* *on*|*off*::
+  Defaŭlte forĵetanta INPUT-permeslisto por la nuna interfaco/adresa
+  amplekso. *on* sola ne malfermas aplikaĵajn pordojn.
+
+*include* _GLOB_::
+  Inkludi dosierojn (relative al la inkluda dosiero); heredas kopion de
+  la nuna kunteksto.
 
 === Pordoj (tcp / udp / sctp / dccp)
 
-Post pordohava protokolo: unu pordo, inkluziva intervalo, aŭ listo
-(spacetoj kaj/aŭ komoj). Unu ero fariĝas skalaro/intervalo; du aŭ pli
-fariĝas anonima nftables-aro.
+Post porda protokolo: pordo, ferma intervalo, aŭ listo (spacetoj kaj/aŭ
+komoj). Unu ero estas skalaro/intervalo; du aŭ pli fariĝas anonima
+nftables-aro.
 
 ----
 allow incoming tcp 22
@@ -118,54 +149,63 @@ nat tcp 80 443 8000-8080 to 10.0.0.50
 ----
 
 Pordoj 0–65535; *HIGH* ≥ *LOW*. Laŭvola prefikso *ADDR:PORT* (aŭ
-*[IPv6]:PORT*). Alie *address* / *interface* donas *ip daddr*. Listoj
-validas por filtrilo kaj NAT (antaŭ *to*), ne por *icmp* / *ct*.
+*[IPv6]:PORT*). Alie *address* / *interface* liveras *ip daddr*.
+
+Listoj validas ĉe *allow* / *deny* / *whitelist* / *blacklist* kaj ĉe
+*nat* / *dnat* / *snat* / *masquerade* / *redirect* (antaŭ *to*), ne ĉe
+*icmp* / *ct*.
 
 === NAT kaj filtrilo
 
 *nat* / *dnat* / *snat* _PROTO_ _PORT_... *to* _DEST_, *masquerade*,
 *redirect*. NAT ne malfermas *INPUT*.
 
-*whitelist* / *allow* estas kaŝnomoj de *accept*. Kun *shield on* ili
-eniru la ŝildan ĉenon. Ĉio post *reject … with* iras al nftables
-(*tcp reset*, …).
+*allow incoming* / *deny incoming* (kromnomoj *whitelist* / *blacklist*)
+aplikiĝas al INPUT. *allow outgoing ip CIDR* [*PROTO* [_PORT_...]]
+aplikiĝas al OUTPUT; preterlasi proton/pordojn kongruas la tutan trafikon
+al tiu CIDR.
+
+*Unuopa pordo* kongruas antaŭ *intervalo*; ĉe sama specifaĵo *allow*
+venkas *deny*.
+
+Kun *shield on* enira politiko eniras la ŝildan ĉenon.
+
+Ĉio post *reject … with* iras al nftables (*tcp reset*, …).
 
 Vidu *guide.md* kaj `info nftconf`.
 
 == Dosieroj
 
 */run/nftconf.pid*::
-  Default daemon pidfile.
+  Implicita pidfile de la demono.
 
 *nftables.d/\*.nft*::
-  Default *convert* output directory.
+  Implicita eliga dosierujo de *convert*.
 
 == Elirstato
 
-*0*::
-  Success.
+*0*:: Sukceso.
 
-*1*::
-  Config/conflict/runtime error.
+*1*:: Agorda/konflikta/rultempa eraro.
 
-*2*::
-  Usage error.
+*2*:: Uzeraro.
 
 == Vidu ankaŭ
 
-*nft*(8), *nftables*(8), *guide.md*, Texinfo (*info nftconf*), and *demo/README.md*.
+*nft*(8), *nftables*(8), *guide.md*, Texinfo-manlibro (*info nftconf*),
+kaj Docker-laboratorio *demo/README.md*.
 
 == Cimoj
 
-Report bugs to: <{project-email}>
+Raporti al: <{project-email}>
 
 == Aŭtoro
 
-Written by {project-author} <{project-email}>.
+Verkita de {project-author} <{project-email}>.
 
 == Kopirajto
 
 Copyright \(C) {project-year} {project-author}.
-License AGPL-3.0-or-later.
-This project opposes AI exploitation and AI hegemony, and rejects mindless
-MIT-style licensing and politically naive BSD-style licensing.
+Permesilo AGPL-3.0-or-later.
+Ĉi tiu projekto kontraŭas AI-ekspluatadon kaj AI-hegemonion, kaj rifuzas
+senpensajn MIT-stilajn kaj politike naivajn BSD-stilajn permesilojn.

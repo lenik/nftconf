@@ -40,10 +40,11 @@ Ports für die lokale Zustellung brauchen explizites *whitelist*/*accept*
   Zeigt Abweichungen zwischen Soll und Ist.
 
 *check* _DATEI_::
-  Parse and print resolved nft rules.
+  Parst und gibt aufgelöste nft-Regeln aus.
 
 *show* _DATEI_::
-  Status je Anweisung (*on*, *N/M*, *---*, *xxx*).
+  Status je Anweisung, Spalte Breite 8: *on* (vollständig live),
+  *N/M* (teilweise), *---* (nicht geladen), *xxx* (Syntaxfehler).
 
 *daemon* _DATEI_::
   Überwacht _DATEI_ (und Includes) und lädt bei Änderungen neu.
@@ -74,6 +75,8 @@ Ports für die lokale Zustellung brauchen explizites *whitelist*/*accept*
 
 == Konfliktpolitik
 
+Gilt für *load*, *daemon* und *convert*:
+
 (Standard)::
   Abbruch bei Konflikt mit bestehenden nft-Einstellungen.
 
@@ -95,7 +98,9 @@ Ports für die lokale Zustellung brauchen explizites *whitelist*/*accept*
 == Konfigurationssprache
 
 Eine Datei enthält eine Anweisung pro Zeile. Leerzeilen werden ignoriert.
-*#* beginnt einen Kommentar (außer in Anführungszeichen). Der erste Token
+*#* beginnt einen Kommentar (außer in Anführungszeichen). Ein Kommentar
+in derselben Zeile wie eine NAT- oder Filteranweisung wird in den
+nft-Regelkommentar nach dem Besitzertag kopiert. Der erste Token
 ist die Anweisung; Namen und Schlüsselwörter sind unabhängig von der
 Groß-/Kleinschreibung. Ein Kontext gilt bis zur nächsten Kontextanweisung.
 

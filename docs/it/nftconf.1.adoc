@@ -13,94 +13,126 @@ nftconf - configurazione nftables dichiarativa con riconciliazione live
 
 == Sintassi
 
-*nftconf* [_GLOBAL_]... _CMD_ [_OPTION_]... [_FILE_]...
+*nftconf* [_GLOBALE_]... _CMD_ [_OPZIONE_]... [_FILE_]...
 
 == Descrizione
 
 *nftconf* legge un piccolo linguaggio dichiarativo e lo riconcilia con il
-ruleset *nftables*(8) attivo. Ogni regola logica ha un commento di proprietà.
+ruleset *nftables*(8) attivo. Ogni regola logica ha un commento di proprietà
+così *load*, *unload* e *daemon* modificano solo le regole di quel file.
 
 Il NAT agisce su prerouting/output/postrouting e *non* apre *INPUT*.
-Le porte consegnate all'host richiedono *whitelist*/*accept* esplicito.
+Le porte consegnate all'host richiedono *allow incoming* (o *whitelist*,
+opzionalmente *shield on*).
 
 == Comandi
 
 *load* _FILE_::
-  Reconcile _FILE_ against the live ruleset. One statement becomes one
-  nft rule. *-c, --compact* packs matching allow/deny into nft sets.
+  Riconcilia _FILE_ con il ruleset live. Di default un'istruzione diventa
+  una regola nft. *-c, --compact* raggruppa gli allow/deny corrispondenti
+  in insiemi nft (comportamento precedente).
 
 *unload* _FILE_::
-  Remove a live rule only when the whole statement matches.
-  *-f, --force* splits a leftover compacted rule and removes as many
-  atoms as possible.
+  Rimuove una regola live solo se l'intera istruzione corrisponde.
+  *-f, --force* spezza una regola compatta residua e rimuove quanti più
+  atomi possibile (sorgente accorciata o modificata).
 
 *status* _FILE_::
-  Show drift between desired and live rules.
+  Mostra lo scostamento tra desiderato e live.
 
 *check* _FILE_::
-  Parse and print resolved nft rules.
+  Analizza e stampa le regole nft risolte (senza applicare).
 
 *show* _FILE_::
-  Per-statement status (*on*, *N/M*, *---*, *xxx*).
+  Stampa ogni istruzione con una colonna di stato larghezza 8: *on*
+  (completamente live), *N/M* (parziale), *---* (non caricata),
+  *xxx* (errore di sintassi).
 
 *daemon* _FILE_::
-  Watch _FILE_ (and includes); reload on change.
-  Default pidfile */run/nftconf.pid*; a second instance refuses to start.
+  Osserva _FILE_ (e gli include) con inotify; ricarica al cambiamento.
+  Pidfile predefinito */run/nftconf.pid*; una seconda istanza è rifiutata.
 
 *stop*::
-  Stop the daemon via the pidfile (*--pid*).
+  Ferma il demone tramite il pidfile (*--pid*).
 
 *convert* _FILE_...::
-  Write consolidated *nftables.d/\*.nft*.
+  Scrive *nftables.d/\*.nft* consolidati (define e insiemi di porte).
 
 *help*::
-  Show usage.
+  Mostra l'uso.
 
 == Opzioni globali
 
 *-v, --verbose*::
-  Debug logging (repeatable).
+  Registro di debug (ripetibile).
 
 *-q, --quiet*::
-  Errors only.
+  Solo errori.
 
 *-h, --help*::
-  Show help.
+  Mostra l'aiuto.
 
 *--version*::
-  Print version and exit.
+  Stampa la versione ed esce.
 
 == Politica di conflitto
 
-(default)::
-  Abort if existing nft settings conflict.
+Si applica a *load*, *daemon* e *convert*:
+
+(predefinito)::
+  Interrompi se le impostazioni nft esistenti sono in conflitto.
 
 *-f, --force*::
-  Overwrite conflicting live rules (*load*).
+  Sovrascrivi le regole live in conflitto (*load*).
 
 *-n, --no-clobber*::
-  Skip conflicting changes.
+  Salta le modifiche in conflitto.
 
 *--dry-run*::
-  Show actions without applying.
+  Mostra le azioni senza applicarle.
 
 *load -c/--compact*::
-  Pack matching statements into nft sets.
+  Raggruppa le istruzioni corrispondenti in insiemi nft.
 
 *unload -f/--force*::
-  Split leftover compacted rules and remove matching atoms.
+  Spezza le regole compatte residue e rimuove gli atomi corrispondenti.
 
 == Linguaggio di config
 
 Una direttiva per riga. Le righe vuote sono ignorate. *#* inizia un
-commento (salvo tra virgolette). Il primo token è la direttiva; nomi e
-parole chiave non distinguono maiuscole/minuscole. Il contesto vale fino
-alla direttiva di contesto successiva.
+commento (salvo tra virgolette). Un commento sulla stessa riga di una
+istruzione NAT o filtro è copiato nel commento nft dopo il tag di
+proprietà. Il primo token è la direttiva; nomi e parole chiave non
+distinguono maiuscole/minuscole. Il contesto vale fino alla direttiva
+di contesto successiva. Non c'è sintassi a blocchi.
 
 === Contesto
 
-*table*, *interface*, *address*, *dest address* / *dest interface*,
-*priority*, *shield on|off*, *include*.
+*table* _NOME_ [_FAMIGLIA_]::
+  Tabella di destinazione (predefinita *nftconf*). Famiglia *ip*
+  (predefinita), *ip6*, *inet*, *arp*, *bridge*, *netdev*.
+
+*interface* _IFACE_...::
+  Confronta *iifname*; risolve anche IPv4 da quelle NIC finché non c'è
+  *address*. Una regola per interfaccia.
+
+*address* _ADDR_...::
+  Confronta l'indirizzo di destinazione (*ip daddr*). Sovrascrive la
+  risoluzione delle interfacce.
+
+*dest address* / *dest interface*::
+  Lato interno/VIP predefinito per `nat … to PORT`. *destination* è
+  un alias di *dest*.
+
+*priority* _NOME_|_NUMERO_::
+  Priorità dell'hook INPUT. Gli hook NAT ignorano questo.
+
+*shield* *on*|*off*::
+  Allow-list INPUT a scarto predefinito per l'ambito interfaccia/indirizzo
+  corrente. *on* da solo non apre porte applicative.
+
+*include* _GLOB_::
+  Include file (relativi al file includente); eredita una copia del contesto.
 
 === Porte (tcp / udp / sctp / dccp)
 
@@ -119,54 +151,62 @@ nat tcp 80 443 8000-8080 to 10.0.0.50
 
 Porte 0–65535; *HIGH* ≥ *LOW*. Prefisso opzionale *ADDR:PORT* (o
 *[IPv6]:PORT*). Altrimenti *address* / *interface* forniscono *ip daddr*.
-Gli elenchi valgono per filtro e NAT (prima di *to*), non per
-*icmp* / *ct*.
+
+Gli elenchi valgono per *allow* / *deny* / *whitelist* / *blacklist* e
+per *nat* / *dnat* / *snat* / *masquerade* / *redirect* (prima di *to*),
+non per *icmp* / *ct*.
 
 === NAT e filtro
 
 *nat* / *dnat* / *snat* _PROTO_ _PORT_... *to* _DEST_, *masquerade*,
 *redirect*. Il NAT non apre *INPUT*.
 
-*whitelist* / *allow* sono alias di *accept*. Con *shield on* entrano
-nella catena shield. Tutto dopo *reject … with* è passato a nftables
-(*tcp reset*, …).
+*allow incoming* / *deny incoming* (alias *whitelist* / *blacklist*)
+si applicano a INPUT. *allow outgoing ip CIDR* [*PROTO* [_PORT_...]]
+si applica a OUTPUT; omettere proto/porte equivale a tutto il traffico
+verso quel CIDR.
+
+Una *porta singola* è confrontata prima di un *intervallo*; alla stessa
+specificità *allow* vince su *deny*.
+
+Con *shield on* la policy in ingresso entra nella catena shield.
+
+Tutto dopo *reject … with* è passato a nftables (*tcp reset*, …).
 
 Vedere *guide.md* e `info nftconf`.
 
 == File
 
 */run/nftconf.pid*::
-  Default daemon pidfile.
+  Pidfile predefinito del demone.
 
 *nftables.d/\*.nft*::
-  Default *convert* output directory.
+  Directory di output predefinita di *convert*.
 
 == Stato di uscita
 
-*0*::
-  Success.
+*0*:: Successo.
 
-*1*::
-  Config/conflict/runtime error.
+*1*:: Errore di config/conflitto/esecuzione.
 
-*2*::
-  Usage error.
+*2*:: Errore di uso.
 
 == Vedere anche
 
-*nft*(8), *nftables*(8), *guide.md*, Texinfo (*info nftconf*), and *demo/README.md*.
+*nft*(8), *nftables*(8), *guide.md*, manuale Texinfo (*info nftconf*),
+e il laboratorio Docker *demo/README.md*.
 
 == Bug
 
-Report bugs to: <{project-email}>
+Segnalare a: <{project-email}>
 
 == Autore
 
-Written by {project-author} <{project-email}>.
+Scritto da {project-author} <{project-email}>.
 
 == Copyright
 
 Copyright \(C) {project-year} {project-author}.
-License AGPL-3.0-or-later.
-This project opposes AI exploitation and AI hegemony, and rejects mindless
-MIT-style licensing and politically naive BSD-style licensing.
+Licenza AGPL-3.0-or-later.
+Questo progetto si oppone allo sfruttamento e all'egemonia dell'IA e
+rifiuta licenze MIT sconsiderate e BSD politicamente ingenue.

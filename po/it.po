@@ -1,10 +1,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: nftconf 0.5.0\n"
+"Project-Id-Version: nftconf 1.3.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-08-19 10:24+0800\n"
-"PO-Revision-Date: 2026-08-01 18:50+0800\n"
+"PO-Revision-Date: 2026-08-19 10:50+0800\n"
 "Last-Translator: Lenik <nftconf@bodz.net>\n"
 "Language-Team: it\n"
 "Language: it\n"
@@ -17,7 +17,6 @@ msgid "Declarative nftables config (live reconcile)"
 msgstr "Configurazione nftables dichiarativa (riconciliazione live)"
 
 #: nftconf_app/cli.py:56
-#, fuzzy
 msgid ""
 "Conflict policy (load / daemon):\n"
 "  default          abort if existing nft settings conflict\n"
@@ -47,29 +46,37 @@ msgid ""
 "  (80 443 1080 8000-8080). convert writes nftables.d/*.nft\n"
 "  (defines + port sets).\n"
 msgstr ""
-"Politica di conflitto (load / unload):\n"
-"  predefinito       interrompi se conflitto con impostazioni nft esistenti\n"
-"  -f, --force       sovrascrivi (load) o rimuovi comunque (unload)\n"
+"Politica di conflitto (load / daemon):\n"
+"  predefinito       interrompi se le impostazioni nft esistenti sono in conflitto\n"
+"  -f, --force       sovrascrivi le regole live in conflitto (load)\n"
 "  -n, --no-clobber  salta le modifiche in conflitto\n"
 "\n"
+"load -c/--compact raggruppa gli allow/deny corrispondenti in insiemi nft.\n"
+"unload rimuove un'istruzione solo se l'intera regola live corrisponde;\n"
+"unload -f/--force spezza una regola compatta residua e rimuove quanti\n"
+"più atomi possibile.\n"
+"show stampa ogni istruzione con stato: on, N/M, ---, xxx.\n"
+"\n"
 "Opzioni globali (prima o dopo CMD):\n"
-"  -v, --verbose     log DEBUG\n"
+"  -v, --verbose     registro DEBUG\n"
 "  -q, --quiet       solo errori\n"
-"  -h, --help        mostra aiuto\n"
-"  --version         mostra versione\n"
+"  -h, --help        mostra l'aiuto\n"
+"  --version         mostra la versione\n"
 "\n"
 "Note:\n"
-"  NAT (nat/dnat/redirect) è gestito in prerouting/forward — non apre INPUT.\n"
-"  Usare whitelist/accept per porte consegnate all'host (SSH, ecc.).\n"
-"  Con shield on, le whitelist entrano nell'allow-list.\n"
-"  dest address / dest interface impostano i default per nat … to ….\n"
+"  Il NAT (nat/dnat/redirect) è gestito in prerouting/forward — non apre INPUT.\n"
+"  Usare allow incoming / whitelist per le porte consegnate all'host (SSH, ecc.).\n"
+"  deny incoming scarta una porta; allow outgoing ip CIDR [tcp/udp PORT...]\n"
+"  filtra OUTPUT (senza porte: tutto il traffico verso quel CIDR).\n"
+"  Una porta singola batte un intervallo; a parità di specificità allow batte deny.\n"
+"  dest address / dest interface impostano i predefiniti per nat … to ….\n"
 "  TCP/UDP accetta una porta, un intervallo (8000-8080) o un elenco\n"
-"  (80 443 1080 8000-8080). convert scrive nftables.d/*.nft consolidati.\n"
+"  (80 443 1080 8000-8080). convert scrive nftables.d/*.nft\n"
+"  (define e insiemi di porte).\n"
 
 #: nftconf_app/cli.py:94
-#, fuzzy
 msgid "force overwrite on conflict"
-msgstr "forza sovrascrittura/rimozione in caso di conflitto"
+msgstr "sovrascrivi forzatamente in caso di conflitto"
 
 #: nftconf_app/cli.py:100
 msgid "skip conflicting changes"
@@ -85,38 +92,36 @@ msgstr "riconcilia FILE con nft live"
 
 #: nftconf_app/cli.py:114 nftconf_app/cli.py:157
 msgid "pack matching statements into nft sets"
-msgstr ""
+msgstr "raggruppa le istruzioni corrispondenti in insiemi nft"
 
 #: nftconf_app/cli.py:118
-#, fuzzy
 msgid "remove live rules for FILE statements"
-msgstr "rimuovi le regole live di proprietà di FILE"
+msgstr "rimuovi le regole live delle istruzioni di FILE"
 
 #: nftconf_app/cli.py:124
 msgid "split leftover compacted rules and remove matching atoms"
-msgstr ""
+msgstr "spezza le regole compatte residue e rimuovi gli atomi corrispondenti"
 
 #: nftconf_app/cli.py:132
 msgid "show drift vs live nft"
 msgstr "mostra lo scostamento rispetto a nft live"
 
 #: nftconf_app/cli.py:135
-#, fuzzy
 msgid "parse and print resolved nft rules"
-msgstr "analizza e stampa le regole risolte"
+msgstr "analizza e stampa le regole nft risolte"
 
 #: nftconf_app/cli.py:140
 msgid "print each statement with live status"
-msgstr ""
+msgstr "stampa ogni istruzione con lo stato live"
 
 #: nftconf_app/cli.py:144
 msgid "watch FILE; reconcile on change"
-msgstr "monitora FILE; riconcilia al cambiamento"
+msgstr "osserva FILE; riconcilia al cambiamento"
 
 #: nftconf_app/cli.py:150 nftconf_app/cli.py:166
 #, python-format
 msgid "pidfile path (default: %(default)s)"
-msgstr "percorso pidfile (predefinito: %(default)s)"
+msgstr "percorso del pidfile (predefinito: %(default)s)"
 
 #: nftconf_app/cli.py:160
 msgid "stop daemon"

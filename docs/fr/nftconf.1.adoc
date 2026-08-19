@@ -42,10 +42,11 @@ Les ports livrés à l'hôte nécessitent un *whitelist*/*accept* explicite
   Affiche l'écart entre désiré et live.
 
 *check* _FICHIER_::
-  Parse and print resolved nft rules.
+  Analyse et affiche les règles nft résolues.
 
 *show* _FICHIER_::
-  État par instruction (*on*, *N/M*, *---*, *xxx*).
+  État par instruction, colonne de largeur 8 : *on* (entièrement live),
+  *N/M* (partiel), *---* (non chargé), *xxx* (erreur de syntaxe).
 
 *daemon* _FICHIER_::
   Surveille _FICHIER_ (et includes) et recharge aux changements.
@@ -76,6 +77,8 @@ Les ports livrés à l'hôte nécessitent un *whitelist*/*accept* explicite
 
 == Politique de conflit
 
+S'applique à *load*, *daemon* et *convert* :
+
 (défaut)::
   Abandon en cas de conflit avec les réglages nft existants.
 
@@ -97,7 +100,9 @@ Les ports livrés à l'hôte nécessitent un *whitelist*/*accept* explicite
 == Langage de config
 
 Une directive par ligne. Les lignes vides sont ignorées. *#* commence un
-commentaire (sauf entre guillemets). Le premier jeton est la directive ;
+commentaire (sauf entre guillemets). Un commentaire sur la même ligne
+qu'une instruction NAT ou filtre est copié dans le commentaire nft après
+l'étiquette de propriété. Le premier jeton est la directive ;
 noms et mots-clés sont insensibles à la casse. Un contexte s'applique
 jusqu'à la directive de contexte suivante.
 
