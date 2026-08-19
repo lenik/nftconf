@@ -1,21 +1,24 @@
 # Gateway image for the nftconf docker lab.
-FROM b4f-debian:bookworm-slim
+# b4f-rocky:10-amd64 is Rocky Linux 10 with a faster CDN.
+FROM b4f-rocky:10-amd64
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
+RUN dnf -y --setopt=install_weak_deps=False install \
         python3 \
         nftables \
-        iproute2 \
-        iputils-ping \
+        iproute \
+        iputils \
         curl \
-        netcat-openbsd \
-        procps \
+        nmap-ncat \
+        procps-ng \
         ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+    && dnf clean all \
+    && rm -rf /var/cache/dnf
 
 WORKDIR /opt/nftconf
 ENV PYTHONPATH=/opt/nftconf
 ENV PATH="/opt/nftconf:${PATH}"
 
+# Base image uses an interactive bash entrypoint; reset so compose `command:` runs as-is.
+ENTRYPOINT ["/usr/bin/env"]
 # Source is bind-mounted at runtime; keep a thin image.
 CMD ["/opt/nftconf/demo/scripts/entrypoint.sh"]

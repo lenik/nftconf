@@ -32,6 +32,9 @@ echo "nftconf demo gw: ext=${EXT_IF:-?} int=${INT_IF:-?} mgmt=${MGMT_IF:-?}"
   echo "table demo"
   echo "priority filter"
   echo
+  echo "# --- outgoing (no interface → no oifname) ---"
+  echo "include $DEMO/conf.d/outgoing.conf"
+  echo
   echo "# --- external (NAT + shield) ---"
   if [[ -n "${EXT_IF:-}" ]]; then
     echo "interface $EXT_IF"
@@ -53,13 +56,35 @@ echo "nftconf demo gw: ext=${EXT_IF:-?} int=${INT_IF:-?} mgmt=${MGMT_IF:-?}"
 
 listen_port() {
   local port=$1
-  # openbsd-netcat: nc -l PORT
-  while true; do
-    printf 'HTTP/1.0 200 OK\r\nContent-Length: 3\r\n\r\nok\n' | nc -l -q 0 "$port" || true
-  done
+  # Python listener: portable across nmap-ncat (Rocky) and OpenBSD nc.
+  python3 - "$port" <<'PY'
+import socket, sys
+port = int(sys.argv[1])
+body = b"ok\n"
+hdr = b"HTTP/1.0 200 OK\r\nContent-Length: %d\r\n\r\n" % len(body)
+s = socket.socket()
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+s.bind(("0.0.0.0", port))
+s.listen(16)
+while True:
+    c, _ = s.accept()
+    try:
+        c.settimeout(1.0)
+        try:
+            c.recv(1024)
+        except OSError:
+            pass
+        try:
+            c.sendall(hdr + body)
+        except OSError:
+            pass
+    finally:
+        c.close()
+PY
 }
 
-for port in 2222 9090 9100; do
+# Host-delivery ports used by smoke + function-cover incoming probes.
+for port in 2222 9090 9100 8000 8033 8100; do
   listen_port "$port" &
 done
 

@@ -230,6 +230,18 @@ test(
     ],
 )
 
+docker = find_program('docker', required: false)
+if docker.found()
+    test(
+        'docker-function-cover',
+        find_program(meson.project_source_root() / 'demo' / 'scripts' / 'function-cover.sh'),
+        timeout: 600,
+        is_parallel: false,
+        suite: 'docker',
+        env: ['NFTCONF_DEMO_DOWN=1'],
+    )
+endif
+
 run_target(
     'posync',
     command: [

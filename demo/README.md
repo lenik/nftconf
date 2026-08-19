@@ -43,12 +43,17 @@ docker compose exec gw /opt/nftconf/demo/scripts/smoke-test.sh pidfile
 
 # Everything the current container can see
 docker compose exec client /demo/scripts/smoke-test.sh
+
+# Full function cover from the host (unit + NAT + shield + allow/deny + daemon)
+./scripts/function-cover.sh
 ```
 
 ## What each check covers
 
 - **NAT** — `client → 10.66.10.2:8080/8443` DNATs to `app:8080/8443`.
 - **Whitelist** — INPUT shield on ext VIP allows 2222/9090, drops 5555; DNAT still works (FORWARD/prerouting).
+- **Incoming policy** — `allow incoming tcp 8000-8100` plus `deny incoming tcp 8033`: the singleton deny wins; 8000 and 8100 stay open.
+- **Outgoing policy** — OUTPUT rules: allow tcp 8080 to the app while denying the rest of that host; a `/32` deny beats a `/24` allow.
 - **Context** — mgmt address `10.66.30.2` has its own shield membership (9100 yes, 2222/5555 no).
 - **Daemon** — editing `conf.d/*.conf` reloads within ~1s via inotify.
 - **Pidfile** — `/run/nftconf.pid`; a second `daemon` exits with “already running”.
@@ -60,6 +65,7 @@ docker compose exec client /demo/scripts/smoke-test.sh
 - `conf.d/nat.conf` — DNAT ports
 - `conf.d/whitelist.conf` — ext shield allow-list
 - `conf.d/mgmt.conf` — mgmt shield allow-list
+- `conf.d/outgoing.conf` — OUTPUT policy (included before `interface`)
 
 ## Manual probes
 
@@ -71,7 +77,7 @@ docker compose exec client curl -s http://10.66.10.2:8080/
 docker compose exec gw nft list ruleset
 
 # Edit and watch daemon reload
-docker compose exec gw bash -c 'echo "whitelist tcp 5555" >> /opt/nftconf/demo/conf.d/whitelist.conf'
+docker compose exec gw bash -c 'echo "allow incoming tcp 5555" >> /opt/nftconf/demo/conf.d/whitelist.conf'
 docker compose logs -f gw
 ```
 

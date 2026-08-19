@@ -6,6 +6,9 @@
 #   docker compose exec gw /opt/nftconf/demo/scripts/smoke-test.sh daemon
 #   docker compose exec gw /opt/nftconf/demo/scripts/smoke-test.sh pidfile
 #
+# Full function cover (NAT, shield, allow/deny incoming+outgoing, daemon):
+#   ./scripts/function-cover.sh
+#
 # Topology:
 #   client ---- ext (10.66.10.0/24) ---- gw ---- int (10.66.20.0/24) ---- app
 #   mgmt-client ---- mgmt (10.66.30.0/24) ---- gw
@@ -65,15 +68,20 @@ services:
   app:
     <<: *lab-image
     hostname: app
+    cap_add:
+      - NET_ADMIN
     command:
       - bash
       - -c
       - |
+        # Return path for DNATed clients on the ext net (VIP SNAT / client src).
+        ip route add 10.66.10.0/24 via 10.66.20.2 || true
         mkdir -p /srv
         printf 'ok-app\n' >/srv/index.html
         python3 -m http.server 8080 --directory /srv &
         python3 -m http.server 8443 --directory /srv &
         python3 -m http.server 9100 --directory /srv &
+        python3 -m http.server 9200 --directory /srv &
         wait
     networks:
       int:
