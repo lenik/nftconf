@@ -10,11 +10,11 @@ from nftconf_app.model import ConfigError, format_dports, normalize_port_atom, p
 from nftconf_app.render import _render_nftables
 
 
-def _parse_text(text: str):
+def _parse_text(text: str, *, compact: bool = False):
     with tempfile.TemporaryDirectory() as td:
         p = Path(td) / "t.conf"
         p.write_text(text, encoding="utf-8")
-        return parse_file(p)
+        return parse_file(p, compact=compact)
 
 
 class ParseTests(unittest.TestCase):
@@ -80,16 +80,14 @@ whitelist tcp 80 443 1080 8000-8080
 """
         )
         stmts = "\n".join(r.stmt for r in cfg.rules)
-        # Singles and ranges are separate matches (single port beats a range).
-        self.assertIn("tcp dport { 80, 443, 1080 }", stmts)
-        self.assertIn("tcp dport 8000-8080", stmts)
+        # One statement → one nft rule (mixed list stays one set).
+        self.assertIn("tcp dport { 80, 443, 1080, 8000-8080 }", stmts)
         self.assertTrue(cfg.sem_wl)
 
     def test_whitelist_comma_separated(self) -> None:
         cfg = _parse_text("address 10.0.0.1\nwhitelist tcp 80,443,1080,8000-8080\n")
         stmts = "\n".join(r.stmt for r in cfg.rules)
-        self.assertIn("tcp dport { 80, 443, 1080 }", stmts)
-        self.assertIn("tcp dport 8000-8080", stmts)
+        self.assertIn("tcp dport { 80, 443, 1080, 8000-8080 }", stmts)
 
     def test_single_port_has_no_set_braces(self) -> None:
         cfg = _parse_text("address 10.0.0.1\nwhitelist tcp 22\n")
@@ -184,8 +182,7 @@ whitelist tcp 80 443 1080 8000-8080
         inner = [r.stmt for r in cfg.rules if r.kind == "shield-accept"]
         self.assertTrue(inner)
         joined = "\n".join(inner)
-        self.assertIn("tcp dport { 80, 443, 1080 }", joined)
-        self.assertIn("tcp dport 8000-8080", joined)
+        self.assertIn("tcp dport { 80, 443, 1080, 8000-8080 }", joined)
         self.assertNotRegex(inner[0], r"nc_sh_\S+\s+ip daddr")
 
 
@@ -288,16 +285,149 @@ shield on
 allow incoming tcp 80
 """
         extra = base + "address 10.0.0.1\nallow incoming tcp 33\n"
-        k80_a = [r.key for r in _parse_text(base).rules if "dport 80" in r.stmt]
-        k80_b = [r.key for r in _parse_text(extra).rules if "dport 80" in r.stmt]
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "t.conf"
+            p.write_text(base, encoding="utf-8")
+            k80_a = [r.key for r in parse_file(p).rules if "dport 80" in r.stmt]
+            p.write_text(extra, encoding="utf-8")
+            k80_b = [r.key for r in parse_file(p).rules if "dport 80" in r.stmt]
         self.assertTrue(k80_a)
         self.assertEqual(k80_a, k80_b)
 
     def test_allow_incoming_udp_list(self) -> None:
         cfg = _parse_text("allow incoming udp 53 5353 60000-61000\n")
         stmts = "\n".join(r.stmt for r in cfg.rules)
-        self.assertIn("udp dport { 53, 5353 }", stmts)
-        self.assertIn("udp dport 60000-61000", stmts)
+        self.assertIn("udp dport { 53, 5353, 60000-61000 }", stmts)
+
+    def test_two_allow_statements_not_merged(self) -> None:
+        cfg = _parse_text(
+            """
+address 10.0.0.1
+allow incoming tcp 80
+allow incoming tcp 443
+"""
+        )
+        accepts = [r.stmt for r in cfg.rules if "accept" in r.stmt]
+        self.assertTrue(any("tcp dport 80 " in s for s in accepts))
+        self.assertTrue(any("tcp dport 443 " in s for s in accepts))
+        self.assertFalse(any("{ 80, 443 }" in s for s in accepts))
+
+    def test_compact_packs_allow_tcp_statements(self) -> None:
+        cfg = _parse_text(
+            """
+address 10.0.0.1
+allow incoming tcp 80
+allow incoming tcp 443
+allow incoming tcp 8000-8080
+""",
+            compact=True,
+        )
+        stmts = "\n".join(r.stmt for r in cfg.rules)
+        self.assertIn("tcp dport { 80, 443 }", stmts)
+        self.assertIn("tcp dport 8000-8080", stmts)
+        self.assertEqual(sum(1 for r in cfg.rules if "dport" in r.stmt), 2)
+
+
+class CoverageTests(unittest.TestCase):
+    def test_status_column(self) -> None:
+        from nftconf_app.coverage import format_stmt_status
+
+        self.assertEqual(format_stmt_status(error=True), "     xxx")
+        self.assertEqual(format_stmt_status(hit=0, total=3), "     ---")
+        self.assertEqual(format_stmt_status(hit=3, total=3), "      on")
+        self.assertEqual(format_stmt_status(hit=1, total=3), "     1/3")
+        self.assertEqual(len(format_stmt_status(hit=1, total=3)), 8)
+
+    def test_replace_dport_subtract(self) -> None:
+        from nftconf_app.coverage import replace_dport_atoms
+
+        sig = "tcp dport { 80, 443, 9090 } accept"
+        self.assertEqual(
+            replace_dport_atoms(sig, ["443", "9090"]),
+            "tcp dport { 443, 9090 } accept",
+        )
+        self.assertIsNone(replace_dport_atoms(sig, []))
+
+    def test_show_marks_syntax_error(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "t.conf"
+            p.write_text(
+                "address 10.0.0.1\nallow incoming tcp 80\nallow incoming tcp zz\n",
+                encoding="utf-8",
+            )
+            cfg = parse_file(p, keep_going=True)
+        err = [s for s in cfg.source_lines if s.error]
+        self.assertEqual(len(err), 1)
+        self.assertIn("zz", err[0].text)
+
+    def test_coverage_partial_from_compacted_live(self) -> None:
+        from nftconf_app.coverage import coverage_for_policies
+        from nftconf_app.model import LiveRule
+
+        cfg = _parse_text("address 10.0.0.1\nallow incoming tcp 80 443 8080\n")
+        pol = cfg.sem_policy
+        lr = LiveRule(
+            owner="x",
+            key="k",
+            family="ip",
+            table="nftconf",
+            chain="nc_in",
+            handle=1,
+            signature="ip daddr 10.0.0.1 tcp dport { 80, 443 } accept",
+            raw="",
+        )
+        hit, total = coverage_for_policies(pol, [lr])
+        self.assertEqual((hit, total), (2, 3))
+
+    def test_live_scope_key_includes_daddr(self) -> None:
+        from nftconf_app.coverage import live_scope_key
+
+        a = live_scope_key("ip daddr 10.0.0.1 tcp dport { 80, 443 } accept")
+        b = live_scope_key("ip daddr 10.0.0.2 tcp dport { 80, 443 } accept")
+        self.assertNotEqual(a, b)
+        self.assertEqual(a[1], "accept")
+
+
+class InlineCommentTests(unittest.TestCase):
+    def test_same_line_hash_goes_into_nft_comment(self) -> None:
+        cfg = _parse_text(
+            "address 10.0.0.1\nallow incoming tcp 1234 # comments\n"
+        )
+        stmt = next(r.stmt for r in cfg.rules if "dport 1234" in r.stmt)
+        self.assertRegex(
+            stmt,
+            r'comment "nftconf:[0-9a-f]+:[0-9a-f]+ comments"',
+        )
+
+    def test_hash_inside_quotes_is_not_a_comment(self) -> None:
+        from nftconf_app.parse import _split_inline_comment
+
+        code, note = _split_inline_comment('allow incoming tcp 80 # real')
+        self.assertEqual(note, "real")
+        code, note = _split_inline_comment('dest address "10.0.0.1#vip"')
+        self.assertEqual(note, "")
+        self.assertIn("#vip", code)
+
+    def test_uncommented_rule_keeps_ownership_only(self) -> None:
+        cfg = _parse_text("address 10.0.0.1\nallow incoming tcp 1234\n")
+        stmt = next(r.stmt for r in cfg.rules if "dport 1234" in r.stmt)
+        self.assertRegex(
+            stmt,
+            r'comment "nftconf:[0-9a-f]+:[0-9a-f]+"$',
+        )
+
+    def test_comment_scan_regex_accepts_note(self) -> None:
+        from nftconf_app.model import _COMMENT_RE
+        from nftconf_app.nft import _normalize_sig
+
+        body = (
+            'ip daddr 10.0.0.1 tcp dport 1234 accept '
+            'comment "nftconf:abcabcabcabc:defdefdefdef1234 comments"'
+        )
+        m = _COMMENT_RE.search(body)
+        self.assertIsNotNone(m)
+        self.assertEqual(m.group(1), "abcabcabcabc")
+        self.assertEqual(_normalize_sig(body), "ip daddr 10.0.0.1 tcp dport 1234 accept")
 
 
 if __name__ == "__main__":

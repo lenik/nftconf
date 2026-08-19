@@ -1,3 +1,18 @@
+nftconf (1.3.0) testing; urgency=medium
+
+  * One config statement maps to one live nft rule by default so later
+    edits/shrinks still unload. load -c/--compact packs matching
+    statements into nft sets (previous behaviour).
+  * unload removes a statement only when the whole live rule matches;
+    unload -f/--force splits a compacted leftover and removes as many
+    atoms as possible.
+  * show is no longer an alias of check: it prints each statement with
+    a width-8 status (on, N/M, ---, xxx).
+  * Same-line # comments on a statement (allow incoming tcp 1234 # note)
+    are copied into the nft rule comment after the ownership tag.
+
+ -- Lenik (谢继雷) <lenik@bodz.net>  Wed, 19 Aug 2026 10:15:29 +0800
+
 nftconf (1.2.0) testing; urgency=medium
 
   * Refactor filter policy to allow/deny with incoming and outgoing:

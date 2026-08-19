@@ -1,13 +1,18 @@
-"""unload — remove live rules owned by FILE."""
+"""unload — remove live rules for statements in FILE."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
+from nftconf_app.coverage import live_port_atoms, live_scope_key, replace_dport_atoms
 from nftconf_app.log import log
-from nftconf_app.model import ConflictError, _owner_id
-from nftconf_app.nft import _delete_lives, scan_live
-from nftconf_app.reconcile import find_unload_conflicts
+from nftconf_app.model import _comment, _rule_key
+from nftconf_app.nft import _delete_lives, _nft_script, _parse_desired_stmt, scan_live
+from nftconf_app.parse import parse_file
+
+
+def _loc(family: str, table: str, chain: str, sig: str) -> tuple:
+    return (family, table, chain) + live_scope_key(sig)
 
 
 def cmd_unload(
@@ -15,44 +20,65 @@ def cmd_unload(
     *,
     dry_run: bool = False,
     force: bool = False,
-    no_clobber: bool = False,
 ) -> int:
-    if force and no_clobber:
-        raise ConflictError("cannot combine --force and --no-clobber")
-    owner = _owner_id(config_path.resolve())
+    cfg = parse_file(config_path)
+    owner = cfg.owner
     live = scan_live(owner=owner)
-    log.debug("unload owner=%s live=%d", owner, len(live))
-    if not live:
+    desired = cfg.by_key()
+    log.debug(
+        "unload owner=%s desired=%d live=%d force=%s",
+        owner,
+        len(desired),
+        len(live),
+        force,
+    )
+
+    exact = [live[k] for k in desired if k in live]
+    leftover = [lr for k, lr in live.items() if k not in desired]
+    unmatched = [desired[k] for k in desired if k not in live]
+
+    to_delete = list(exact)
+    add_script: list[str] = []
+
+    if force and unmatched and leftover:
+        punch: dict[tuple, set[str]] = {}
+        for dr in unmatched:
+            family, table, chain, body = _parse_desired_stmt(dr.stmt)
+            _proto, ports, _wild = live_port_atoms(body)
+            if not ports:
+                continue
+            punch.setdefault(_loc(family, table, chain, body), set()).update(ports)
+
+        for lr in leftover:
+            drop_ports = punch.get(
+                _loc(lr.family, lr.table, lr.chain, lr.signature)
+            )
+            if not drop_ports:
+                continue
+            _lproto, lports, _wild = live_port_atoms(lr.signature)
+            if not (set(lports) & drop_ports):
+                continue
+            remaining = [a for a in lports if a not in drop_ports]
+            to_delete.append(lr)
+            new_sig = replace_dport_atoms(lr.signature, remaining)
+            if new_sig:
+                key = _rule_key("split", lr.family, lr.table, lr.chain, new_sig)
+                add_script.append(
+                    f"add rule {lr.family} {lr.table} {lr.chain} "
+                    f"{new_sig} {_comment(owner, key)}"
+                )
+
+    if not to_delete and not add_script:
         log.info("unload complete (-0 stmts; owner=%s)", owner)
         return 0
 
-    foreign = find_unload_conflicts(owner, live)
-    if foreign:
-        for lr in foreign[:10]:
-            who = (
-                f"nftconf:{lr.owner}:{lr.key}"
-                if lr.owner
-                else f"foreign handle {lr.handle}"
-            )
-            msg = f"conflict: {lr.family}/{lr.table}/{lr.chain} has {who}"
-            if force:
-                log.warning("%s — forcing remove of owned rules", msg)
-            elif no_clobber:
-                log.warning("%s — skipping unload (--no-clobber)", msg)
-            else:
-                log.error("%s (use -f to remove owned rules or -n to skip)", msg)
-        if len(foreign) > 10:
-            log.error("... and %d more", len(foreign) - 10)
-        if no_clobber:
-            log.info(
-                "unload skipped (%d foreign rule(s) in managed chains)", len(foreign)
-            )
-            return 0
-        if not force:
-            raise ConflictError(
-                f"{len(foreign)} foreign rule(s) in chains owned rules share"
-            )
+    removed = _delete_lives(to_delete, dry_run=dry_run)
+    if add_script:
+        if dry_run:
+            for s in add_script:
+                log.info("would: %s", s)
+        else:
+            _nft_script("\n".join(add_script) + "\n")
 
-    removed = _delete_lives(list(live.values()), dry_run=dry_run)
     log.info("unload complete (-%d stmts; owner=%s)", removed, owner)
     return 0

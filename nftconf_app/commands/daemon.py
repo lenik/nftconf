@@ -93,8 +93,9 @@ def _reload(
     *,
     force: bool = False,
     no_clobber: bool = False,
+    compact: bool = False,
 ) -> Config:
-    cfg = parse_file(config_path)
+    cfg = parse_file(config_path, compact=compact)
     added, removed = reconcile(
         cfg, dry_run=False, force=force, no_clobber=no_clobber
     )
@@ -108,6 +109,7 @@ def cmd_daemon(
     *,
     force: bool = False,
     no_clobber: bool = False,
+    compact: bool = False,
 ) -> int:
     config_path = config_path.resolve()
     pidfile = Path(pidfile)
@@ -135,7 +137,11 @@ def cmd_daemon(
 
     try:
         cfg = _reload(
-            config_path, "initial load", force=force, no_clobber=no_clobber
+            config_path,
+            "initial load",
+            force=force,
+            no_clobber=no_clobber,
+            compact=compact,
         )
     except Exception as e:
         log.error("initial load failed: %s", e)
@@ -174,6 +180,7 @@ def cmd_daemon(
                             "reload",
                             force=force,
                             no_clobber=no_clobber,
+                            compact=compact,
                         )
                         refresh(cfg)
                     except Exception as e:
@@ -191,7 +198,7 @@ def cmd_daemon(
         while not stop:
             time.sleep(1.0)
             try:
-                cfg2 = parse_file(config_path)
+                cfg2 = parse_file(config_path, compact=compact)
             except ConfigError as e:
                 log.error("parse error: %s", e)
                 continue
@@ -206,6 +213,7 @@ def cmd_daemon(
                         "reload",
                         force=force,
                         no_clobber=no_clobber,
+                        compact=compact,
                     )
                     snap = {
                         str(p): p.stat().st_mtime if p.exists() else -1.0

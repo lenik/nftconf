@@ -15,8 +15,9 @@ def cmd_load(
     dry_run: bool = False,
     force: bool = False,
     no_clobber: bool = False,
+    compact: bool = False,
 ) -> int:
-    cfg = parse_file(config_path)
+    cfg = parse_file(config_path, compact=compact)
     log.debug("parsed %s: %d rules owner=%s", config_path, len(cfg.rules), cfg.owner)
     added, removed = reconcile(
         cfg, dry_run=dry_run, force=force, no_clobber=no_clobber

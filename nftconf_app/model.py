@@ -81,8 +81,10 @@ def port_atoms(expr: str) -> list[str]:
 DEFAULT_PID = "/run/nftconf.pid"
 DEFAULT_NFTABLES_D = Path("nftables.d")
 
-# nftconf:<owner>:<key>  — one comment per live nft statement (1:1 with DesiredRule)
-_COMMENT_RE = re.compile(r'comment\s+"nftconf:([0-9a-f]+):([0-9a-f]+)"')
+# nftconf:<owner>:<key>[ user note]  — one comment per live nft statement
+_COMMENT_RE = re.compile(
+    r'comment\s+"nftconf:([0-9a-f]+):([0-9a-f]+)(?:\s+[^"]*)?"'
+)
 _HANDLE_LINE = re.compile(r"#\s*handle\s+(\d+)")
 _ADD_RULE_RE = re.compile(
     r"^add rule (?P<family>\S+) (?P<table>\S+) (?P<chain>\S+) (?P<body>.*)$"
@@ -117,12 +119,30 @@ def _owner_id(config_path: Path) -> str:
     return hashlib.sha256(str(config_path.resolve()).encode()).hexdigest()[:12]
 
 
-def _rule_key(*parts: str) -> str:
+def _rule_key(*parts: str, note: str = "") -> str:
+    if note:
+        parts = (*parts, note)
     return hashlib.sha256("|".join(parts).encode()).hexdigest()[:16]
 
 
-def _comment(owner: str, key: str) -> str:
-    return f'comment "nftconf:{owner}:{key}"'
+def _sanitize_nft_note(note: str) -> str:
+    """Collapse whitespace; nft comment strings cannot contain unescaped quotes."""
+    extra = " ".join((note or "").split())
+    return extra.replace("\\", "").replace('"', "'")
+
+
+def _comment(owner: str, key: str, note: str = "") -> str:
+    body = f"nftconf:{owner}:{key}"
+    extra = _sanitize_nft_note(note)
+    if extra:
+        body = f"{body} {extra}"
+    return f'comment "{body}"'
+
+
+def _rule_comment(cfg: "Config", key: str, note: Optional[str] = None) -> str:
+    """Ownership comment, plus same-line # text from the config when present."""
+    extra = cfg.line_note if note is None else note
+    return _comment(cfg.owner, key, extra)
 
 
 @dataclass(frozen=True)
@@ -138,6 +158,8 @@ class DesiredRule:
     summary: str
     # Apply order for overlapping allow/deny (lower first). NAT/infra stay 0.
     order: int = 0
+    # Originating config line (0 if packed/compact or infrastructure).
+    lineno: int = 0
 
 
 @dataclass
@@ -202,6 +224,22 @@ class SemPolicy:
     filter_priority: int
     shield: bool
     source: str
+    lineno: int = 0
+    raw: str = ""
+    note: str = ""
+
+
+@dataclass
+class SourceLine:
+    """One non-empty config directive (for `show` status)."""
+
+    path: Path
+    lineno: int
+    text: str
+    note: str = ""
+    error: Optional[str] = None
+    role: str = "other"  # context, include, policy, nat, filter, other
+    policies: list[SemPolicy] = field(default_factory=list)
 
 
 @dataclass
@@ -218,6 +256,10 @@ class Config:
     sem_nat: list[SemNat] = field(default_factory=list)
     sem_wl: list[SemWhitelist] = field(default_factory=list)
     sem_policy: list[SemPolicy] = field(default_factory=list)
+    source_lines: list[SourceLine] = field(default_factory=list)
+    compact: bool = False
+    # Same-line # comment of the directive currently being parsed.
+    line_note: str = ""
 
     def by_key(self) -> dict[str, DesiredRule]:
         out: dict[str, DesiredRule] = {}

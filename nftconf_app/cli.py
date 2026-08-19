@@ -13,6 +13,7 @@ from nftconf_app.commands.check import cmd_check
 from nftconf_app.commands.convert import cmd_convert
 from nftconf_app.commands.daemon import cmd_daemon
 from nftconf_app.commands.load import cmd_load
+from nftconf_app.commands.show import cmd_show
 from nftconf_app.commands.status import cmd_status
 from nftconf_app.commands.stop import cmd_stop
 from nftconf_app.commands.unload import cmd_unload
@@ -52,10 +53,16 @@ def _build_parser() -> argparse.ArgumentParser:
         description=_("Declarative nftables config (live reconcile)"),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=_(
-            "Conflict policy (load / unload):\n"
+            "Conflict policy (load / daemon):\n"
             "  default          abort if existing nft settings conflict\n"
-            "  -f, --force      overwrite (load) or remove owned rules anyway (unload)\n"
+            "  -f, --force      overwrite conflicting live rules (load)\n"
             "  -n, --no-clobber skip conflicting changes; leave existing settings alone\n"
+            "\n"
+            "load -c/--compact packs matching allow/deny statements into nft sets.\n"
+            "unload removes a statement only when the whole live rule matches;\n"
+            "unload -f/--force splits a leftover compacted rule and removes as many\n"
+            "atoms as possible.\n"
+            "show prints each statement with status: on, N/M, ---, xxx.\n"
             "\n"
             "Global options (before or after CMD):\n"
             "  -v, --verbose    DEBUG logging\n"
@@ -84,7 +91,7 @@ def _build_parser() -> argparse.ArgumentParser:
             "-f",
             "--force",
             action="store_true",
-            help=_("force overwrite/remove on conflict"),
+            help=_("force overwrite on conflict"),
         )
         g.add_argument(
             "-n",
@@ -100,19 +107,38 @@ def _build_parser() -> argparse.ArgumentParser:
 
     sp_load = sub.add_parser("load", help=_("reconcile FILE against live nft"))
     sp_load.add_argument("file", type=Path)
+    sp_load.add_argument(
+        "-c",
+        "--compact",
+        action="store_true",
+        help=_("pack matching statements into nft sets"),
+    )
     add_conflict_opts(sp_load)
 
-    sp_unload = sub.add_parser("unload", help=_("remove live rules owned by FILE"))
+    sp_unload = sub.add_parser("unload", help=_("remove live rules for FILE statements"))
     sp_unload.add_argument("file", type=Path)
-    add_conflict_opts(sp_unload)
+    sp_unload.add_argument(
+        "-f",
+        "--force",
+        action="store_true",
+        help=_("split leftover compacted rules and remove matching atoms"),
+    )
+    sp_unload.add_argument(
+        "--dry-run",
+        action="store_true",
+        help=_("show actions without applying"),
+    )
 
     sp_status = sub.add_parser("status", help=_("show drift vs live nft"))
     sp_status.add_argument("file", type=Path)
 
-    sp_check = sub.add_parser("check", help=_("parse and print resolved rules"))
+    sp_check = sub.add_parser("check", help=_("parse and print resolved nft rules"))
     sp_check.add_argument("file", type=Path)
 
-    sp_show = sub.add_parser("show", help=_("alias for check"))
+    sp_show = sub.add_parser(
+        "show",
+        help=_("print each statement with live status"),
+    )
     sp_show.add_argument("file", type=Path)
 
     sp_daemon = sub.add_parser("daemon", help=_("watch FILE; reconcile on change"))
@@ -124,6 +150,12 @@ def _build_parser() -> argparse.ArgumentParser:
         help=_("pidfile path (default: %(default)s)"),
     )
     add_conflict_opts(sp_daemon)
+    sp_daemon.add_argument(
+        "-c",
+        "--compact",
+        action="store_true",
+        help=_("pack matching statements into nft sets"),
+    )
 
     sp_stop = sub.add_parser("stop", help=_("stop daemon"))
     sp_stop.add_argument("file", type=Path, nargs="?", default=None)
@@ -182,24 +214,27 @@ def main(argv: Optional[list[str]] = None) -> int:
                 dry_run=ns.dry_run,
                 force=ns.force,
                 no_clobber=ns.no_clobber,
+                compact=ns.compact,
             )
         if ns.cmd == "unload":
             return cmd_unload(
                 ns.file,
                 dry_run=ns.dry_run,
                 force=ns.force,
-                no_clobber=ns.no_clobber,
             )
         if ns.cmd == "status":
             return cmd_status(ns.file)
-        if ns.cmd in ("check", "show"):
+        if ns.cmd == "check":
             return cmd_check(ns.file)
+        if ns.cmd == "show":
+            return cmd_show(ns.file)
         if ns.cmd == "daemon":
             return cmd_daemon(
                 ns.file,
                 ns.pid,
                 force=ns.force,
                 no_clobber=ns.no_clobber,
+                compact=ns.compact,
             )
         if ns.cmd == "stop":
             return cmd_stop(ns.pid)

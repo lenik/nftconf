@@ -25,8 +25,10 @@ from nftconf_app.model import (
     SemNat,
     SemPolicy,
     SemWhitelist,
+    SourceLine,
     _comment,
     _owner_id,
+    _rule_comment,
     _rule_key,
     format_dports,
     normalize_port_atom,
@@ -46,7 +48,8 @@ _SPEC_RE = re.compile(
 )
 
 
-def _strip_comment(line: str) -> str:
+def _split_inline_comment(line: str) -> tuple[str, str]:
+    """Split a trailing # comment outside quotes. Returns (code, note)."""
     in_single = in_double = False
     for i, ch in enumerate(line):
         if ch == "'" and not in_double:
@@ -54,8 +57,12 @@ def _strip_comment(line: str) -> str:
         elif ch == '"' and not in_single:
             in_double = not in_double
         elif ch == "#" and not in_single and not in_double:
-            return line[:i].rstrip()
-    return line.rstrip()
+            return line[:i].rstrip(), line[i + 1 :].strip()
+    return line.rstrip(), ""
+
+
+def _strip_comment(line: str) -> str:
+    return _split_inline_comment(line)[0]
 
 
 def _parse_priority(tok: str) -> int:
@@ -270,6 +277,8 @@ def parse_file(
     _stack: Optional[list[Path]] = None,
     _ctx: Optional[Context] = None,
     _defer_policy: bool = False,
+    compact: bool = False,
+    keep_going: bool = False,
 ) -> Config:
     path = path.resolve()
     stack = _stack or []
@@ -283,7 +292,7 @@ def parse_file(
     if owner is None:
         owner = _owner_id(path)
 
-    cfg = Config(path=path, owner=owner)
+    cfg = Config(path=path, owner=owner, compact=compact)
     ctx = Context() if _ctx is None else _copy_ctx(_ctx)
     stack = stack + [path]
     # Track whether shield infrastructure was emitted for current shield scope
@@ -291,17 +300,41 @@ def parse_file(
 
     with path.open() as fh:
         for lineno, raw in enumerate(fh, 1):
-            line = _strip_comment(raw).strip()
+            code, note = _split_inline_comment(raw)
+            line = code.strip()
             if not line:
                 continue
+            sl = SourceLine(path=path, lineno=lineno, text=line, note=note)
+            cfg.source_lines.append(sl)
+            cfg.line_note = note
             try:
-                _handle_line(line, ctx, cfg, path, stack, shield_infra_keys)
+                _handle_line(
+                    line,
+                    ctx,
+                    cfg,
+                    path,
+                    stack,
+                    shield_infra_keys,
+                    lineno=lineno,
+                    source_line=sl,
+                    compact=compact,
+                    keep_going=keep_going,
+                )
             except ConfigError as e:
+                msg = e.msg
+                if keep_going:
+                    sl.error = msg
+                    continue
                 if e.path is None:
-                    raise ConfigError(e.msg, path=path, lineno=lineno) from None
+                    raise ConfigError(msg, path=path, lineno=lineno) from None
                 raise
             except Exception as e:
+                if keep_going:
+                    sl.error = str(e)
+                    continue
                 raise ConfigError(str(e), path=path, lineno=lineno) from e
+            finally:
+                cfg.line_note = ""
 
     if not _defer_policy:
         _compile_policies(cfg, path)
@@ -316,12 +349,22 @@ def _handle_line(
     path: Path,
     stack: list[Path],
     shield_infra_keys: set[str],
+    *,
+    lineno: int = 0,
+    source_line: Optional[SourceLine] = None,
+    compact: bool = False,
+    keep_going: bool = False,
 ) -> None:
     parts = line.split()
     op = parts[0].lower()
 
+    def _role(role: str) -> None:
+        if source_line is not None:
+            source_line.role = role
+
     # --- contexts ---
     if op == "table":
+        _role("context")
         if len(parts) < 2:
             raise ConfigError("usage: table NAME [family]")
         ctx.table = parts[1]
@@ -333,6 +376,7 @@ def _handle_line(
         return
 
     if op == "interface":
+        _role("context")
         if len(parts) < 2:
             raise ConfigError("usage: interface IFACE [IFACE...]")
         ctx.interfaces = parts[1:]
@@ -341,6 +385,7 @@ def _handle_line(
         return
 
     if op == "address":
+        _role("context")
         if len(parts) < 2:
             raise ConfigError("usage: address ADDR [ADDR...]")
         ctx.addresses = parts[1:]
@@ -348,6 +393,7 @@ def _handle_line(
         return
 
     if op in ("dest", "destination"):
+        _role("context")
         if len(parts) < 3:
             raise ConfigError(
                 "usage: dest interface IFACE... | dest address ADDR..."
@@ -367,12 +413,14 @@ def _handle_line(
         )
 
     if op == "priority":
+        _role("context")
         if len(parts) != 2:
             raise ConfigError("usage: priority NAME|NUMBER")
         ctx.filter_priority = _parse_priority(parts[1])
         return
 
     if op == "shield":
+        _role("context")
         if len(parts) != 2 or parts[1].lower() not in ("on", "off", "yes", "no"):
             raise ConfigError("usage: shield on|off")
         ctx.shield = parts[1].lower() in ("on", "yes")
@@ -381,6 +429,7 @@ def _handle_line(
         return
 
     if op == "include":
+        _role("include")
         if len(parts) != 2:
             raise ConfigError("usage: include GLOB")
         pattern = parts[1]
@@ -395,7 +444,13 @@ def _handle_line(
                 continue
             cfg.includes.append(inc)
             sub = parse_file(
-                inc, owner=cfg.owner, _stack=stack, _ctx=ctx, _defer_policy=True
+                inc,
+                owner=cfg.owner,
+                _stack=stack,
+                _ctx=ctx,
+                _defer_policy=True,
+                compact=compact,
+                keep_going=keep_going,
             )
             cfg.rules.extend(sub.rules)
             cfg.includes.extend(sub.includes)
@@ -404,27 +459,37 @@ def _handle_line(
             cfg.sem_nat.extend(sub.sem_nat)
             cfg.sem_wl.extend(sub.sem_wl)
             cfg.sem_policy.extend(sub.sem_policy)
+            cfg.source_lines.extend(sub.source_lines)
         return
 
     # --- NAT ---
     if op in ("nat", "dnat", "snat", "masquerade", "redirect"):
+        _role("nat")
         _emit_nat(op, parts, ctx, cfg, path)
         return
 
     # --- filter policy (allow/deny incoming|outgoing) ---
     if op in ("allow", "deny", "whitelist", "blacklist"):
-        _collect_policy(op, parts, ctx, cfg, path)
+        _role("policy")
+        _collect_policy(
+            op, parts, ctx, cfg, path, lineno=lineno, source_line=source_line
+        )
         return
 
     # --- legacy / non-port filter (icmp, ct, reject, catch-all) ---
     if op == "reject":
+        _role("filter")
         _emit_filter(op, parts, ctx, cfg, path, shield_infra_keys)
         return
     if op in ("accept", "drop"):
         rest0 = parts[1].lower() if len(parts) > 1 else ""
         if rest0 in _DIRECTIONS or rest0 in PROTO_PORT:
-            _collect_policy(op, parts, ctx, cfg, path)
+            _role("policy")
+            _collect_policy(
+                op, parts, ctx, cfg, path, lineno=lineno, source_line=source_line
+            )
             return
+        _role("filter")
         _emit_filter(op, parts, ctx, cfg, path, shield_infra_keys)
         return
 
@@ -654,7 +719,14 @@ def _cidr_prefixlen(cidr: str) -> int:
 
 
 def _collect_policy(
-    op: str, parts: list[str], ctx: Context, cfg: Config, path: Path
+    op: str,
+    parts: list[str],
+    ctx: Context,
+    cfg: Config,
+    path: Path,
+    *,
+    lineno: int = 0,
+    source_line: Optional[SourceLine] = None,
 ) -> None:
     if op in ("whitelist", "allow", "accept"):
         verdict = "accept"
@@ -671,14 +743,41 @@ def _collect_policy(
     if op == "blacklist" and direction != "incoming":
         raise ConfigError("blacklist is incoming only; use 'deny outgoing ...'")
 
+    raw = source_line.text if source_line is not None else " ".join(parts)
     if direction == "outgoing":
-        _collect_outgoing(verdict, rest, ctx, cfg, path)
+        _collect_outgoing(
+            verdict,
+            rest,
+            ctx,
+            cfg,
+            path,
+            lineno=lineno,
+            raw=raw,
+            source_line=source_line,
+        )
         return
-    _collect_incoming(verdict, rest, ctx, cfg, path)
+    _collect_incoming(
+        verdict,
+        rest,
+        ctx,
+        cfg,
+        path,
+        lineno=lineno,
+        raw=raw,
+        source_line=source_line,
+    )
 
 
 def _collect_incoming(
-    verdict: str, rest: list[str], ctx: Context, cfg: Config, path: Path
+    verdict: str,
+    rest: list[str],
+    ctx: Context,
+    cfg: Config,
+    path: Path,
+    *,
+    lineno: int = 0,
+    raw: str = "",
+    source_line: Optional[SourceLine] = None,
 ) -> None:
     proto: Optional[str] = None
     dports = ""
@@ -695,25 +794,37 @@ def _collect_incoming(
             if src_addr:
                 dests = (src_addr,)
     for iface in _ifaces(ctx):
-        cfg.sem_policy.append(
-            SemPolicy(
-                verdict=verdict,
-                direction="incoming",
-                proto=proto,
-                dests=dests,
-                dports=dports,
-                interface=iface,
-                table=ctx.table,
-                family=ctx.family,
-                filter_priority=ctx.filter_priority,
-                shield=ctx.shield,
-                source=str(path),
-            )
+        p = SemPolicy(
+            verdict=verdict,
+            direction="incoming",
+            proto=proto,
+            dests=dests,
+            dports=dports,
+            interface=iface,
+            table=ctx.table,
+            family=ctx.family,
+            filter_priority=ctx.filter_priority,
+            shield=ctx.shield,
+            source=str(path),
+            lineno=lineno,
+            raw=raw,
+            note=source_line.note if source_line is not None else "",
         )
+        cfg.sem_policy.append(p)
+        if source_line is not None:
+            source_line.policies.append(p)
 
 
 def _collect_outgoing(
-    verdict: str, rest: list[str], ctx: Context, cfg: Config, path: Path
+    verdict: str,
+    rest: list[str],
+    ctx: Context,
+    cfg: Config,
+    path: Path,
+    *,
+    lineno: int = 0,
+    raw: str = "",
+    source_line: Optional[SourceLine] = None,
 ) -> None:
     usage = (
         "usage: allow|deny outgoing ip CIDR [CIDR...] [PROTO [PORT...]]..."
@@ -747,21 +858,25 @@ def _collect_outgoing(
     for iface in _ifaces(ctx):
         for cidr in cidrs:
             for proto, dports in groups:
-                cfg.sem_policy.append(
-                    SemPolicy(
-                        verdict=verdict,
-                        direction="outgoing",
-                        proto=proto,
-                        dests=(cidr,),
-                        dports=dports,
-                        interface=iface,
-                        table=ctx.table,
-                        family=ctx.family,
-                        filter_priority=ctx.filter_priority,
-                        shield=False,
-                        source=str(path),
-                    )
+                p = SemPolicy(
+                    verdict=verdict,
+                    direction="outgoing",
+                    proto=proto,
+                    dests=(cidr,),
+                    dports=dports,
+                    interface=iface,
+                    table=ctx.table,
+                    family=ctx.family,
+                    filter_priority=ctx.filter_priority,
+                    shield=False,
+                    source=str(path),
+                    lineno=lineno,
+                    raw=raw,
+                    note=source_line.note if source_line is not None else "",
                 )
+                cfg.sem_policy.append(p)
+                if source_line is not None:
+                    source_line.policies.append(p)
 
 
 def _split_port_atoms(dports: str) -> tuple[list[str], list[str], bool]:
@@ -828,6 +943,7 @@ def _compile_policies(cfg: Config, path: Path) -> None:
             prio=prio,
             next_order=next_order,
             shield_infra_keys=shield_infra_keys,
+            compact=cfg.compact,
         )
 
     out_keys = sorted(
@@ -850,7 +966,22 @@ def _compile_policies(cfg: Config, path: Path) -> None:
             prio=prio,
             next_order=next_order,
             shield_infra_keys=shield_infra_keys,
+            compact=cfg.compact,
         )
+
+
+def _stmt_bucket(p: SemPolicy) -> int:
+    """Lower runs first: singles, then ranges, allow before deny at each level."""
+    allow = p.verdict == "accept"
+    if p.proto is None:
+        return 8 if not allow else 7
+    singles, ranges, is_all = _split_port_atoms(p.dports)
+    if is_all:
+        return 6 if not allow else 5
+    if singles and not ranges:
+        return 1 if not allow else 0
+    # ranges and mixed lists are less specific than a singleton statement
+    return 3 if not allow else 2
 
 
 def _emit_policy_group(
@@ -867,8 +998,149 @@ def _emit_policy_group(
     prio: int,
     next_order,
     shield_infra_keys: set[str],
+    compact: bool,
 ) -> None:
-    # proto -> buckets
+    ctx = Context(
+        table=table,
+        family=family,
+        filter_priority=prio,
+        shield=shield,
+    )
+    daddr = _daddr_match(dests, family)
+    im_in = _iface_match(iface)
+    im_out = _oiface_match(iface)
+
+    names: Optional[dict[str, str]] = None
+    if direction == "incoming" and shield:
+        names = _ensure_shield_infra(
+            ctx, cfg, path, iface, dests, shield_infra_keys
+        )
+
+    if compact:
+        packed_note = "; ".join(dict.fromkeys(p.note for p in rows if p.note))
+        steps = _compact_policy_steps(rows)
+        for verdict, proto, dports in steps:
+            _emit_compiled_policy(
+                cfg,
+                path,
+                verdict=verdict,
+                direction=direction,
+                proto=proto,
+                dports=dports,
+                dests=dests,
+                daddr=daddr,
+                im_in=im_in,
+                im_out=im_out,
+                iface=iface,
+                family=family,
+                table=table,
+                prio=prio,
+                shield=shield,
+                names=names,
+                order=next_order(),
+                note=packed_note,
+            )
+            _maybe_sem_wl(
+                cfg,
+                path,
+                verdict=verdict,
+                direction=direction,
+                proto=proto,
+                dports=dports,
+                dests=dests,
+                iface=iface,
+                family=family,
+                table=table,
+                prio=prio,
+                shield=shield,
+            )
+        return
+
+    ordered = sorted(rows, key=lambda p: (_stmt_bucket(p), p.lineno, p.source))
+    for p in ordered:
+        dports = p.dports
+        if dports:
+            dports = format_dports(port_atoms(dports))
+        use_dests = p.dests if p.dests else dests
+        use_daddr = _daddr_match(use_dests, family) if use_dests != dests else daddr
+        _emit_compiled_policy(
+            cfg,
+            path,
+            verdict=p.verdict,
+            direction=direction,
+            proto=p.proto,
+            dports=dports,
+            dests=use_dests,
+            daddr=use_daddr,
+            im_in=im_in,
+            im_out=im_out,
+            iface=iface,
+            family=family,
+            table=table,
+            prio=prio,
+            shield=shield,
+            names=names,
+            order=next_order(),
+            lineno=p.lineno,
+            stmt_source=p.source,
+            note=p.note,
+        )
+        _maybe_sem_wl(
+            cfg,
+            path,
+            verdict=p.verdict,
+            direction=direction,
+            proto=p.proto,
+            dports=dports,
+            dests=use_dests,
+            iface=iface,
+            family=family,
+            table=table,
+            prio=prio,
+            shield=shield,
+        )
+
+
+def _maybe_sem_wl(
+    cfg: Config,
+    path: Path,
+    *,
+    verdict: str,
+    direction: str,
+    proto: Optional[str],
+    dports: str,
+    dests: tuple[str, ...],
+    iface: Optional[str],
+    family: str,
+    table: str,
+    prio: int,
+    shield: bool,
+) -> None:
+    if (
+        direction == "incoming"
+        and verdict == "accept"
+        and proto
+        and proto in PROTO_PORT
+        and dports
+    ):
+        cfg.sem_wl.append(
+            SemWhitelist(
+                proto=proto,
+                daddrs=dests,
+                dports=dports,
+                interface=iface,
+                table=table,
+                family=family,
+                filter_priority=prio,
+                shield=shield,
+                source=str(path),
+            )
+        )
+
+
+def _compact_policy_steps(
+    rows: list[SemPolicy],
+) -> list[tuple[str, Optional[str], str]]:
     singles_allow: dict[str, list[str]] = {}
     singles_deny: dict[str, list[str]] = {}
     ranges_allow: dict[str, list[str]] = {}
@@ -901,7 +1173,6 @@ def _emit_policy_group(
             ranges_deny.setdefault(proto, []).extend(ranges)
 
     steps: list[tuple[str, Optional[str], str]] = []
-    # (verdict, proto, dports_or_empty)
     for proto in _PROTO_ORDER:
         if singles_allow.get(proto):
             steps.append(("accept", proto, format_dports(singles_allow[proto])))
@@ -919,63 +1190,7 @@ def _emit_policy_group(
         steps.append(("accept", None, ""))
     if traffic_deny:
         steps.append(("drop", None, ""))
-
-    ctx = Context(
-        table=table,
-        family=family,
-        filter_priority=prio,
-        shield=shield,
-    )
-    daddr = _daddr_match(dests, family)
-    im_in = _iface_match(iface)
-    im_out = _oiface_match(iface)
-
-    names: Optional[dict[str, str]] = None
-    if direction == "incoming" and shield:
-        names = _ensure_shield_infra(
-            ctx, cfg, path, iface, dests, shield_infra_keys
-        )
-
-    for verdict, proto, dports in steps:
-        _emit_compiled_policy(
-            cfg,
-            path,
-            verdict=verdict,
-            direction=direction,
-            proto=proto,
-            dports=dports,
-            dests=dests,
-            daddr=daddr,
-            im_in=im_in,
-            im_out=im_out,
-            iface=iface,
-            family=family,
-            table=table,
-            prio=prio,
-            shield=shield,
-            names=names,
-            order=next_order(),
-        )
-        if (
-            direction == "incoming"
-            and verdict == "accept"
-            and proto
-            and proto in PROTO_PORT
-            and dports
-        ):
-            cfg.sem_wl.append(
-                SemWhitelist(
-                    proto=proto,
-                    daddrs=dests,
-                    dports=dports,
-                    interface=iface,
-                    table=table,
-                    family=family,
-                    filter_priority=prio,
-                    shield=shield,
-                    source=str(path),
-                )
-            )
+    return steps
 
 
 def _emit_compiled_policy(
@@ -997,6 +1212,9 @@ def _emit_compiled_policy(
     shield: bool,
     names: Optional[dict[str, str]],
     order: int,
+    lineno: int = 0,
+    stmt_source: str = "",
+    note: str = "",
 ) -> None:
     cfg.tables.add((family, table))
     if proto and dports:
@@ -1037,7 +1255,7 @@ def _emit_compiled_policy(
         needs = ((family, table, "filter", prio),)
         inner = f"{prefix}{match}"
 
-    key = _rule_key(
+    key_parts = [
         kind,
         family,
         table,
@@ -1047,10 +1265,13 @@ def _emit_compiled_policy(
         proto or "",
         dports,
         verdict,
-    )
+    ]
+    if lineno:
+        key_parts.extend([stmt_source or str(path), str(lineno)])
+    key = _rule_key(*key_parts, note=note)
     stmt = (
         f"add rule {family} {table} {chain} "
-        f"{inner}{action} {_comment(cfg.owner, key)}"
+        f"{inner}{action} {_rule_comment(cfg, key, note=note)}"
     )
     _append_rule(
         cfg,
@@ -1062,6 +1283,7 @@ def _emit_compiled_policy(
             source=str(path),
             summary=f"{direction} {verdict} {summary}",
             order=order,
+            lineno=lineno,
         ),
     )
 
@@ -1119,6 +1341,7 @@ def _emit_nat(
                 ",".join(daddrs),
                 dports or "",
                 iface or "",
+                note=cfg.line_note,
             )
             match = _iface_match(iface) + _daddr_match(daddrs, ctx.family)
             if proto and dports:
@@ -1127,7 +1350,7 @@ def _emit_nat(
                 match += f"meta l4proto {proto} "
             stmt = (
                 f"add rule {ctx.family} {ctx.table} {chains['post']} "
-                f"{match}masquerade {_comment(cfg.owner, key)}"
+                f"{match}masquerade {_rule_comment(cfg, key)}"
             )
             _append_rule(
                 cfg,
@@ -1170,12 +1393,13 @@ def _emit_nat(
                     dports,
                     to_port,
                     iface or "",
+                    note=cfg.line_note,
                 )
                 prefix = im if use_iface else ""
                 stmt = (
                     f"add rule {ctx.family} {ctx.table} {chain} "
                     f"{prefix}{daddr}{proto} dport {dports} "
-                    f"redirect to {to_port} {_comment(cfg.owner, key)}"
+                    f"redirect to {to_port} {_rule_comment(cfg, key)}"
                 )
                 _append_rule(
                     cfg,
@@ -1207,12 +1431,13 @@ def _emit_nat(
                 dports,
                 to,
                 iface or "",
+                note=cfg.line_note,
             )
             stmt = (
                 f"add rule {ctx.family} {ctx.table} {chains['post']} "
                 f"{_daddr_match(daddrs, ctx.family) if daddrs else ''}"
                 f"{proto} dport {dports} snat to {to} "
-                f"{_comment(cfg.owner, key)}"
+                f"{_rule_comment(cfg, key)}"
             )
             _append_rule(
                 cfg,
@@ -1294,10 +1519,11 @@ def _emit_nat(
                 to_addr,
                 to_ports,
                 iface or "",
+                note=cfg.line_note,
             )
             stmt = (
                 f"add rule {ctx.family} {ctx.table} {chain} "
-                f"{body} {_comment(cfg.owner, key)}"
+                f"{body} {_rule_comment(cfg, key)}"
             )
             _append_rule(
                 cfg,
@@ -1444,6 +1670,7 @@ def _emit_filter(
                 ",".join(daddrs),
                 match_expr,
                 action,
+                note=cfg.line_note,
             )
             # Port accepts inside shield should not re-match daddr (already jumped)
             # Use proto dport only when we have ports
@@ -1457,7 +1684,7 @@ def _emit_filter(
                 inner = re.sub(r"ip6? daddr \S+ ", "", inner)
             stmt = (
                 f"add rule {ctx.family} {ctx.table} {chain} "
-                f"{inner}{action} {_comment(cfg.owner, key)}"
+                f"{inner}{action} {_rule_comment(cfg, key)}"
             )
             needs = (
                 (
@@ -1490,11 +1717,12 @@ def _emit_filter(
                 iface or "",
                 match_expr,
                 action,
+                note=cfg.line_note,
             )
             stmt = (
                 f"add rule {ctx.family} {ctx.table} {chain} "
                 f"{_iface_match(iface)}{match_expr}{action} "
-                f"{_comment(cfg.owner, key)}"
+                f"{_rule_comment(cfg, key)}"
             )
             _append_rule(
                 cfg,

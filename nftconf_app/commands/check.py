@@ -1,4 +1,4 @@
-"""check/show — parse and print resolved rules."""
+"""check — parse and print resolved nft rules."""
 
 from __future__ import annotations
 
