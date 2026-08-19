@@ -94,10 +94,11 @@ NAT ทำงานที่ prerouting/output/postrouting และ *ไม่*
 หนึ่งรายการเป็นสเกลาร์/ช่วง สองรายการขึ้นไปเป็นเซตนามแฝง nftables
 
 ----
-whitelist tcp 22
-whitelist tcp 8000-8080
-whitelist tcp 80 443 1080 8000-8080
-whitelist tcp 80,443,1080,8000-8080
+allow incoming tcp 22
+allow incoming tcp 8000-8080
+allow incoming tcp 80 443 1080 8000-8080
+deny incoming tcp 33
+allow outgoing ip 10.0.0.0/8 tcp 443
 nat tcp 80 443 8000-8080 to 10.0.0.50
 ----
 

@@ -21,13 +21,14 @@ config path, then *load* / *daemon* add or remove only those owned statements.
 
 Important design points:
 
-* *NAT does not open INPUT.* DNATed services still need *whitelist* if the
-  packet is delivered locally; forwarded DNAT uses prerouting/forward.
+* *NAT does not open INPUT.* DNATed services still need *allow incoming*
+  if the packet is delivered locally; forwarded DNAT uses prerouting/forward.
 * *shield on* builds a drop-default INPUT allow-list for the current
   interface/address context.
 * *dest address* / *dest interface* supply defaults for `nat … to PORT`.
 * TCP/UDP (and sctp/dccp) matches accept a port, an inclusive range, or a
-  list: `whitelist tcp 80 443 1080 8000-8080`.
+  list: `allow incoming tcp 80 443 1080 8000-8080`. A single port beats a
+  range; at the same specificity, allow beats deny.
 
 == Invoking nftconf
 
@@ -156,14 +157,15 @@ address 203.0.113.10 203.0.113.11
   accepted alias of `dest`.
 
 *priority* _NAME_|_NUMBER_::
-  Filter *input* hook priority for subsequent *whitelist* / *accept* /
-  *drop* / *reject* / *shield* rules. Named values: *raw* (-300),
+  Filter *input* hook priority for subsequent *allow* / *deny* /
+  *whitelist* / *shield* rules. Named values: *raw* (-300),
   *mangle* (-150), *dstnat* (-100), *filter* (0), *security* (50),
   *srcnat* (100). An integer is used as-is. NAT hooks stay at nftables
   *dstnat* / output -100 / *srcnat* and ignore this setting.
 
 *shield* *on*|*off*::
-  *on* (also *yes*): subsequent filter *accept*/*whitelist* rules go into a
+  *on* (also *yes*): subsequent *allow incoming* / *deny incoming* rules
+  go into a
   per-scope drop-default chain. nftconf emits, once per scope:
   jump from INPUT → shield chain; `ct state established,related accept`;
   `ip protocol icmp accept`; user allows; then `drop`.
@@ -188,7 +190,7 @@ inclusive range, a list, and optionally a match address.
   Decimal 0–65535. Leading zeros are accepted and normalized (`0080` → 80).
 +
 ----
-whitelist tcp 22
+allow incoming tcp 22
 ----
 
 *Inclusive range* (`LOW-HIGH`)::
@@ -197,7 +199,7 @@ whitelist tcp 22
   (no braces).
 +
 ----
-whitelist tcp 8000-8080
+allow incoming tcp 8000-8080
 accept udp 60000-61000
 ----
 
@@ -206,9 +208,9 @@ accept udp 60000-61000
   nftconf sorts and deduplicates for a stable anonymous set.
 +
 ----
-whitelist tcp 80 443 1080 8000-8080
-whitelist tcp 80,443,1080,8000-8080
-whitelist tcp 80, 443 1080 8000-8080
+allow incoming tcp 80 443 1080 8000-8080
+allow incoming tcp 80,443,1080,8000-8080
+allow incoming tcp 80, 443 1080 8000-8080
 ----
 +
 A list of more than one atom is emitted as one nftables match:
@@ -225,8 +227,8 @@ A single atom never gets set braces (`tcp dport 22`, not `+{ 22 }+`).
   addresses on one line is an error; write two lines instead.
 +
 ----
-whitelist tcp 192.0.2.10:80 443
-whitelist tcp [2001:db8::1]:22
+allow incoming tcp 192.0.2.10:80 443
+allow incoming tcp [2001:db8::1]:22
 ----
 +
 If no address is written on the line, the current *address* / *interface*
@@ -237,7 +239,7 @@ any destination address (port only).
 
 Port lists and ranges are accepted on:
 
-* filter: *whitelist*, *accept*, *allow*, *drop*, *reject* after *tcp* /
+* filter: *allow*, *deny*, *whitelist*, *blacklist* after *tcp* /
   *udp* / *sctp* / *dccp*
 * NAT: *nat*, *dnat*, *snat*, *masquerade*, *redirect* after the protocol
   and *before* the keyword *to*
@@ -276,7 +278,7 @@ dnat udp 53 5353 to 10.0.0.53
 
 NAT rules are attached to prerouting / output / postrouting. *They never
 open INPUT.* A DNATed service that must also be accepted on the host still
-needs *whitelist*/*accept*.
+needs *allow incoming*.
 
 *nat* _PROTO_ _PORT_... *to* _DEST_::
   Convenience DNAT plus SNAT (return path) when the match address is a
@@ -307,43 +309,54 @@ is an error.
 Filter rules use the current table, family, *priority*, *interface*,
 *address*, and *shield* flag.
 
-*whitelist* / *allow* / *accept*::
-  *whitelist* and *allow* are aliases of *accept*. With *shield on*, they
-  are inserted in the shield allow-list (before the terminal *drop*).
-  With *shield off*, they are ordinary INPUT accepts.
+*allow* / *deny* *incoming*|_in_|_input_ _PROTO_ [_PORT_...]::
+  INPUT policy. *whitelist* is an alias of *allow incoming*; *blacklist*
+  of *deny incoming*. Omit ports to match every port of _PROTO_, or omit
+  _PROTO_ to match all incoming traffic.
 +
 ----
-whitelist tcp 22
-whitelist tcp 80 443 1080 8000-8080
-accept tcp 80
-accept udp 53
-accept                         # catch-all accept in this scope
-accept tcp                     # any TCP (no port)
-accept icmp
-accept icmp echo-request
-accept icmpv6
-accept ct established,related
+allow incoming tcp 22
+allow incoming tcp 80 443 1080 8000-8080
+deny incoming tcp 33
+allow incoming udp 53
 ----
 
-*drop*::
-  Drop matching traffic. A bare `drop` with *shield on* is skipped
-  (the shield chain already ends with *drop*).
+*allow* / *deny* *outgoing*|_out_|_output_ *ip* _CIDR_... [_PROTO_ [_PORT_...]...]::
+  OUTPUT policy (`oifname` + `ip daddr`). Omit proto and ports to match
+  all traffic to those CIDRs.
++
+----
+allow outgoing ip 10.0.0.0/8 tcp 443
+allow outgoing ip 192.0.2.0/24
+deny outgoing ip 8.8.8.8 udp 53
+----
+
+*Priority* (nftables first-match)::
+  A *single port* is emitted before a *range*. At the same specificity,
+  *allow* is emitted before *deny*. Longer outgoing prefixes come first.
++
+* `allow incoming tcp 10-100` and `deny incoming tcp 33` → 33 is denied.
+* `allow incoming tcp 10-100` and `deny incoming tcp 10-100` → 10–100
+  stay allowed.
+
+*shield* *on*::
+  Incoming allow/deny join a drop-default chain (established/related and
+  ICMP accepted automatically).
 
 *reject* [_MATCH_...] [*with* _TYPE_...]::
-  Reject instead of drop. Everything after *with* is passed to nftables
-  (`tcp reset`, `icmp port-unreachable`, …).
+  Reject instead of drop. Everything after *with* is passed to nftables.
 +
 ----
-reject tcp 25
 reject tcp 25 587 with tcp reset
 ----
++
+*accept icmp*, *accept ct established,related* remain for non-port matches.
 
 === Semantic notes for convert
 
-`nftconf convert` folds 1:1 NAT port lists and whitelist port lists into
+`nftconf convert` folds 1:1 NAT port lists and incoming allow ports into
 `define` sets (`$app_ports`, `$whitelist_ports`). Live *load*/*daemon*
-still apply one owned statement per config line (with an anonymous set
-when the line listed several ports), not one statement per port.
+split mixed singleton/range lists so a single port can override a range.
 
 === Example file
 
@@ -356,8 +369,10 @@ address 203.0.113.10
 dest address 10.0.0.50
 
 shield on
-whitelist tcp 22
-whitelist tcp 80 443 1080 8000-8080
+allow incoming tcp 22
+allow incoming tcp 80 443 1080 8000-8080
+deny incoming tcp 33
+allow outgoing ip 10.0.0.0/8 tcp 443
 
 nat tcp 8080 to 8080
 nat tcp 80 443 to 10.0.0.50

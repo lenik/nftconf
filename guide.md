@@ -104,12 +104,11 @@ After a portful protocol, write a **port spec**:
 
 | Form | Example | Emitted nft |
 |------|---------|-------------|
-| Single port (0–65535) | `whitelist tcp 22` | `tcp dport 22` |
-| Inclusive range | `whitelist tcp 8000-8080` | `tcp dport 8000-8080` |
-| List (spaces and/or commas) | `whitelist tcp 80 443 1080 8000-8080` | `tcp dport { 80, 443, 1080, 8000-8080 }` |
-| Comma-only list | `whitelist tcp 80,443,1080` | `tcp dport { 80, 443, 1080 }` |
-| Address prefix | `whitelist tcp 192.0.2.10:80 443` | `ip daddr 192.0.2.10 tcp dport { 80, 443 }` |
-| IPv6 prefix | `whitelist tcp [2001:db8::1]:22` | `ip6 daddr 2001:db8::1 tcp dport 22` |
+| Single port (0–65535) | `allow incoming tcp 22` | `tcp dport 22` |
+| Inclusive range | `allow incoming tcp 8000-8080` | `tcp dport 8000-8080` |
+| List (spaces and/or commas) | `allow incoming tcp 80 443 1080` | `tcp dport { 80, 443, 1080 }` |
+| Mixed list + range | `allow incoming tcp 80 8000-8080` | singles first, then the range |
+| Address prefix | `allow incoming tcp 192.0.2.10:80 443` | `ip daddr 192.0.2.10 tcp dport { 80, 443 }` |
 
 Rules:
 
@@ -120,9 +119,9 @@ Rules:
   line. Two different addresses on one line are an error.
 - Without an inline address, the current `address` / `interface` context
   supplies `ip daddr`. If that is empty, the match is port-only.
-- Lists work on **filter** (`whitelist` / `accept` / `allow` / `drop` /
-  `reject`) and **NAT** (`nat` / `dnat` / `snat` / `masquerade` /
-  `redirect`) after the protocol and before `to`.
+- Lists work on **filter** (`allow` / `deny` / `whitelist` / `blacklist`) and
+  **NAT** (`nat` / `dnat` / `snat` / `masquerade` / `redirect`) after the
+  protocol and before `to`.
 - Not used for `icmp`, `icmpv6`, or `ct`.
 
 NAT `to DEST` is **one token**:
@@ -153,36 +152,47 @@ redirect tcp 80 443 to 8080
 - `redirect` — redirect to a local port or range (`to` is not a list).
 
 NAT uses prerouting/output/postrouting. **It does not open INPUT.** Host
-delivery still needs `whitelist` / `accept`.
+delivery still needs `allow incoming` (or `whitelist`).
 
 A `nat`/`dnat` line with no match address (no `address`/`interface` and no
 `ADDR:PORT`) is an error.
 
-### Whitelist / shield / other filter
+### Allow / deny / shield
 
 ```nftconf
 shield on
-whitelist tcp 22
-whitelist tcp 80 443 1080 8000-8080
-accept udp 53
+allow incoming tcp 22
+allow incoming tcp 80 443 1080 8000-8080
+deny incoming tcp 33
+allow incoming udp 53
+allow outgoing ip 10.0.0.0/8 tcp 443
+allow outgoing ip 192.0.2.0/24
+deny outgoing ip 8.8.8.8 udp 53
 accept icmp
-accept ct established,related
-drop
 reject tcp 25 587 with tcp reset
 ```
 
-- `whitelist` and `allow` are aliases of `accept`.
-- With `shield on`, accepts join a per-scope shield chain that ends in
-  `drop`. Established/related and ICMP are accepted automatically.
-- Bare `accept` is a catch-all in the current scope; `accept tcp` matches
-  any TCP (no port).
-- `reject … with TYPE…` passes every token after `with` to nftables
-  (`tcp reset`, `icmp port-unreachable`, …).
-- Bare `drop` under `shield on` is omitted (the chain already drops).
+- `allow incoming` / `deny incoming` apply to INPUT (`iifname` + `daddr`
+  from context). `in` / `input` are aliases of `incoming`.
+- `allow outgoing ip CIDR… [PROTO [PORT…]]…` applies to OUTPUT
+  (`oifname` + `ip daddr`). Omit proto/ports to match **all** traffic to
+  that CIDR. `out` / `output` alias `outgoing`.
+- `whitelist` / `blacklist` are aliases of `allow incoming` /
+  `deny incoming`.
+- With `shield on`, incoming allows/denies join a per-scope shield chain
+  that ends in `drop`. Established/related and ICMP are accepted
+  automatically.
+- **Priority** (nftables first-match): a **single port** is evaluated
+  before a **range**; at the same specificity, **allow** is evaluated
+  before **deny**.
+  - `allow incoming tcp 10-100` plus `deny incoming tcp 33` → 33 is denied.
+  - `allow incoming tcp 10-100` plus `deny incoming tcp 10-100` → 10–100
+    are allowed.
+- Longer outgoing prefixes are emitted before shorter ones (`/32` before
+  `/8`).
+- `reject … with TYPE…` is unchanged (`tcp reset`, …).
 
-`nftconf convert` folds whitelist/NAT port lists into `$whitelist_ports` /
-`$app_ports`. Live `load`/`daemon` still emit **one** owned statement per
-config line (with an anonymous set when that line listed several ports).
+`nftconf convert` folds incoming allow port lists into `$whitelist_ports`.
 
 ## Multi-NIC / address scope
 
@@ -222,6 +232,7 @@ docker compose exec client /demo/scripts/smoke-test.sh
 docker compose exec mgmt-client /demo/scripts/smoke-test.sh mgmt
 docker compose exec gw /opt/nftconf/demo/scripts/smoke-test.sh daemon
 docker compose exec gw /opt/nftconf/demo/scripts/smoke-test.sh pidfile
+./scripts/function-cover.sh
 ```
 
 See [demo/README.md](demo/README.md).

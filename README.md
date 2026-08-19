@@ -9,8 +9,8 @@ stable comment tag.
 - **load / unload / status / check** — live reconcile with conflict policy
 - **daemon** — inotify reload + **pidfile** (single instance)
 - **NAT** (`nat`/`dnat`/`snat`/`masquerade`/`redirect`) without opening INPUT
-- **whitelist / shield** — drop-default INPUT allow-lists
-- **TCP/UDP port lists and ranges** — `whitelist tcp 80 443 1080 8000-8080`
+- **allow / deny** — incoming INPUT and outgoing OUTPUT policy
+- **TCP/UDP port lists and ranges** — `allow incoming tcp 80 443 1080 8000-8080`
 - **Context scopes** — multi-NIC / multi-address via `interface` / `address`
 - **convert** — emit consolidated `nftables.d/*.nft`
 - **Docker demo** — NAT, shield, reload, pidfile, dual-NIC lab under `demo/`
@@ -63,8 +63,10 @@ dest address 10.0.0.50
 priority filter
 
 shield on
-whitelist tcp 22
-whitelist tcp 80 443 1080 8000-8080
+allow incoming tcp 22
+allow incoming tcp 80 443 1080 8000-8080
+deny incoming tcp 33
+allow outgoing ip 10.0.0.0/8 tcp 443
 nat tcp 8080 to 8080
 nat tcp 80 443 to 10.0.0.50
 
@@ -104,6 +106,7 @@ ninja -C /build look          # DESTDIR tree preview
 ```bash
 cd demo && docker compose up -d --build
 docker compose exec client /demo/scripts/smoke-test.sh
+./demo/scripts/function-cover.sh    # NAT, shield, allow/deny, daemon
 ```
 
 ## Debian package

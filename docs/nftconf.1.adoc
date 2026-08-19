@@ -23,8 +23,8 @@ comment so later *load*, *unload*, and *daemon* runs can add, update, or remove
 only rules that belong to that config file.
 
 NAT rules are applied on prerouting/output/postrouting hooks and *do not* open
-*INPUT*. Ports that must be delivered to the host need an explicit
-*whitelist*/*accept* (and optionally *shield on*).
+*INPUT*. Ports that must be delivered to the host need *allow incoming*
+(or *whitelist*, and optionally *shield on*).
 
 == Commands
 
@@ -127,11 +127,11 @@ Items may be separated by spaces and/or commas. A single atom is emitted
 as a scalar or range; two or more become an nftables anonymous set.
 
 ----
-whitelist tcp 22
-whitelist tcp 8000-8080
-whitelist tcp 80 443 1080 8000-8080
-whitelist tcp 80,443,1080,8000-8080
-whitelist tcp 192.0.2.10:80 443
+allow incoming tcp 22
+allow incoming tcp 8000-8080
+allow incoming tcp 80 443 1080 8000-8080
+deny incoming tcp 33
+allow outgoing ip 10.0.0.0/8 tcp 443
 nat tcp 80 443 8000-8080 to 10.0.0.50
 ----
 
@@ -139,9 +139,9 @@ Ports are 0–65535; *HIGH* must be ≥ *LOW*. An optional *ADDR:PORT* (or
 *[IPv6]:PORT*) prefixes the list; following bare ports share that
 address. Otherwise *address* / *interface* supply *ip daddr*.
 
-Lists are accepted on *whitelist* / *accept* / *allow* / *drop* /
-*reject* and on *nat* / *dnat* / *snat* / *masquerade* / *redirect*
-(before *to*). Not used for *icmp* / *ct*.
+Lists are accepted on *allow* / *deny* / *whitelist* / *blacklist* and on
+*nat* / *dnat* / *snat* / *masquerade* / *redirect* (before *to*).
+Not used for *icmp* / *ct*.
 
 The token after *to* is one destination: *ADDR* (keep source ports),
 *PORT* (use *dest address*), or *ADDR:PORT*.
@@ -155,17 +155,25 @@ NAT uses prerouting/output/postrouting and *does not* open *INPUT*.
 
 === Filter
 
-*whitelist* / *allow* are aliases of *accept*. With *shield on* they join
-the shield chain (established/related and ICMP are allowed, then
-user ports, then *drop*).
+*allow incoming* / *deny incoming* (aliases *whitelist* / *blacklist*)
+apply to INPUT. *allow outgoing ip CIDR* [*PROTO* [_PORT_...]] applies to
+OUTPUT; omit proto/ports to match all traffic to that CIDR.
+
+A *single port* is matched before a *range*; at the same specificity
+*allow* wins over *deny*. Example: allow 10-100 and deny 33 → 33 is
+denied; allow 10-100 and deny 10-100 → the range stays allowed.
+
+With *shield on*, incoming policy joins the shield chain
+(established/related and ICMP, then user rules, then *drop*).
 
 ----
 shield on
-whitelist tcp 22
-whitelist tcp 80 443 1080 8000-8080
+allow incoming tcp 22
+allow incoming tcp 80 443 1080 8000-8080
+deny incoming tcp 33
+allow outgoing ip 10.0.0.0/8 tcp 443
 accept icmp
 reject tcp 25 587 with tcp reset
-drop
 ----
 
 *accept* with no match is a catch-all; *accept tcp* matches any TCP.
