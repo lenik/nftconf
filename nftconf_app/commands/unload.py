@@ -4,15 +4,17 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from nftconf_app.coverage import live_port_atoms, live_scope_key, replace_dport_atoms
+from nftconf_app.coverage import plan_force_split, replace_dport_atoms
 from nftconf_app.log import log
 from nftconf_app.model import _comment, _rule_key
-from nftconf_app.nft import _delete_lives, _nft_script, _parse_desired_stmt, scan_live
+from nftconf_app.nft import (
+    _delete_lives,
+    _nft_script,
+    _parse_desired_stmt,
+    scan_all_rules,
+    scan_live,
+)
 from nftconf_app.parse import parse_file
-
-
-def _loc(family: str, table: str, chain: str, sig: str) -> tuple:
-    return (family, table, chain) + live_scope_key(sig)
 
 
 def cmd_unload(
@@ -39,33 +41,41 @@ def cmd_unload(
 
     to_delete = list(exact)
     add_script: list[str] = []
+    skip_keys = {lr.key for lr in exact if lr.key}
 
-    if force and unmatched and leftover:
-        punch: dict[tuple, set[str]] = {}
-        for dr in unmatched:
-            family, table, chain, body = _parse_desired_stmt(dr.stmt)
-            _proto, ports, _wild = live_port_atoms(body)
-            if not ports:
+    if force and unmatched:
+        # Compact leftovers may be owned by a parent include file, and may
+        # omit daddr (one packed tcp set). Scan every nftconf-owned rule.
+        owned = [
+            lr
+            for lr in scan_all_rules()
+            if lr.owner is not None and lr.key is not None
+        ]
+        pool = leftover + [lr for lr in owned if lr.key not in live]
+        want = [_parse_desired_stmt(dr.stmt) for dr in unmatched]
+        splits = plan_force_split(want, pool, skip_keys=skip_keys)
+        seen: set[tuple[str, str, int]] = set()
+        for lr, remaining in splits:
+            ident = (lr.family, lr.table, lr.handle)
+            if ident in seen:
                 continue
-            punch.setdefault(_loc(family, table, chain, body), set()).update(ports)
-
-        for lr in leftover:
-            drop_ports = punch.get(
-                _loc(lr.family, lr.table, lr.chain, lr.signature)
-            )
-            if not drop_ports:
-                continue
-            _lproto, lports, _wild = live_port_atoms(lr.signature)
-            if not (set(lports) & drop_ports):
-                continue
-            remaining = [a for a in lports if a not in drop_ports]
+            seen.add(ident)
             to_delete.append(lr)
             new_sig = replace_dport_atoms(lr.signature, remaining)
             if new_sig:
+                keep_owner = lr.owner or owner
                 key = _rule_key("split", lr.family, lr.table, lr.chain, new_sig)
                 add_script.append(
                     f"add rule {lr.family} {lr.table} {lr.chain} "
-                    f"{new_sig} {_comment(owner, key)}"
+                    f"{new_sig} {_comment(keep_owner, key)}"
+                )
+                log.debug(
+                    "force-split %s/%s/%s handle %s drop leftover set → %s",
+                    lr.family,
+                    lr.table,
+                    lr.chain,
+                    lr.handle,
+                    new_sig,
                 )
 
     if not to_delete and not add_script:

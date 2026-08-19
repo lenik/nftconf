@@ -1,3 +1,15 @@
+nftconf (1.3.1) testing; urgency=medium
+
+  * unload -f now punches matching ports out of a leftover compacted nft
+    set even when the live rule has a different owner (included child
+    file vs parent) or no ip daddr (packed allow incoming tcp).
+  * Remainder stays tagged with the original owner. Default unload is
+    still exact whole-statement match.
+  * Complete gettext and localized man-page translations for 1.3.0
+    CLI (compact, force-split, show status, inline comments).
+
+ -- Lenik (谢继雷) <lenik@bodz.net>  Wed, 19 Aug 2026 11:00:51 +0800
+
 nftconf (1.3.0) testing; urgency=medium
 
   * One config statement maps to one live nft rule by default so later

@@ -388,6 +388,61 @@ class CoverageTests(unittest.TestCase):
         self.assertEqual(a[1], "accept")
 
 
+class ForceUnloadTests(unittest.TestCase):
+    def test_punch_other_owner_compact_set_without_daddr(self) -> None:
+        from nftconf_app.coverage import plan_force_split, replace_dport_atoms
+        from nftconf_app.model import LiveRule
+        from nftconf_app.nft import _parse_desired_stmt
+
+        cfg = _parse_text("address 10.0.0.1\nallow incoming tcp 1240\n")
+        want = [
+            _parse_desired_stmt(r.stmt)
+            for r in cfg.rules
+            if "accept" in r.stmt and "dport" in r.stmt
+        ]
+        lr = LiveRule(
+            owner="ed0aa2d50a94",
+            key="f7f07a7f4948f43b",
+            family="ip",
+            table="nftconf",
+            chain="nc_in_907e7f94",
+            handle=1,
+            signature="tcp dport { 1240, 1241, 1244 } accept",
+            raw="",
+        )
+        splits = plan_force_split(want, [lr])
+        self.assertEqual(len(splits), 1)
+        live, remaining = splits[0]
+        self.assertEqual(set(remaining), {"1241", "1244"})
+        self.assertEqual(
+            replace_dport_atoms(live.signature, remaining),
+            "tcp dport { 1241, 1244 } accept",
+        )
+
+    def test_punch_skips_disjoint_daddr(self) -> None:
+        from nftconf_app.coverage import plan_force_split
+        from nftconf_app.model import LiveRule
+        from nftconf_app.nft import _parse_desired_stmt
+
+        cfg = _parse_text("address 10.0.0.1\nallow incoming tcp 80\n")
+        want = [
+            _parse_desired_stmt(r.stmt)
+            for r in cfg.rules
+            if "dport" in r.stmt
+        ]
+        lr = LiveRule(
+            owner="other",
+            key="k",
+            family="ip",
+            table="nftconf",
+            chain="nc_in_xxxx",
+            handle=2,
+            signature="ip daddr 10.0.0.2 tcp dport { 80, 443 } accept",
+            raw="",
+        )
+        self.assertEqual(plan_force_split(want, [lr]), [])
+
+
 class InlineCommentTests(unittest.TestCase):
     def test_same_line_hash_goes_into_nft_comment(self) -> None:
         cfg = _parse_text(

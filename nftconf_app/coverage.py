@@ -143,6 +143,97 @@ def coverage_for_policies(
     return hit, len(units)
 
 
+def chain_kind(chain: str) -> str:
+    if chain.startswith("nc_of_"):
+        return "out"
+    if chain.startswith("nc_sh_"):
+        return "shield"
+    if chain.startswith("nc_in_"):
+        return "in"
+    return chain
+
+
+def _kinds_compatible(desired_chain: str, live_chain: str) -> bool:
+    dk, lk = chain_kind(desired_chain), chain_kind(live_chain)
+    if dk == lk:
+        return True
+    return {dk, lk} <= {"in", "shield"}
+
+
+def _iface_overlap(want: str, live: str) -> bool:
+    wi = _IIF_RE.search(want)
+    li = _IIF_RE.search(live)
+    if wi and li and wi.group(1) != li.group(1):
+        return False
+    wo = _OIF_RE.search(want)
+    lo = _OIF_RE.search(live)
+    if wo and lo and wo.group(1) != lo.group(1):
+        return False
+    return True
+
+
+def punch_overlap(want_body: str, live_sig: str) -> set[str]:
+    """Ports in both bodies when proto/verdict/addr/iface are compatible."""
+    wp, wports, _ = live_port_atoms(want_body)
+    lp, lports, _ = live_port_atoms(live_sig)
+    if not wports or not lports or wp != lp:
+        return set()
+    if sig_verdict(want_body) != sig_verdict(live_sig):
+        return set()
+    hit = set(wports) & set(lports)
+    if not hit:
+        return set()
+    wd = set(_sig_daddrs(want_body))
+    ld = set(_sig_daddrs(live_sig))
+    if wd and ld and not (wd & ld):
+        return set()
+    if not _iface_overlap(want_body, live_sig):
+        return set()
+    return hit
+
+
+def plan_force_split(
+    desired: list[tuple[str, str, str, str]],
+    lives: list[LiveRule],
+    *,
+    skip_keys: Optional[set[str]] = None,
+) -> list[tuple[LiveRule, list[str]]]:
+    """For each leftover live rule, remaining dport atoms after punching FILE.
+
+    desired entries are (family, table, chain, body). skip_keys are exact
+    matches already queued for whole-rule delete.
+    """
+    skip = skip_keys or set()
+    punch: dict[tuple[str, str, int], set[str]] = {}
+    by_id: dict[tuple[str, str, int], LiveRule] = {}
+    for lr in lives:
+        if lr.owner is None or lr.key is None or lr.key in skip:
+            continue
+        ident = (lr.family, lr.table, lr.handle)
+        by_id[ident] = lr
+        punch.setdefault(ident, set())
+
+    for family, table, chain, body in desired:
+        for ident, lr in by_id.items():
+            if lr.family != family or lr.table != table:
+                continue
+            if not _kinds_compatible(chain, lr.chain):
+                continue
+            punch[ident].update(punch_overlap(body, lr.signature))
+
+    out: list[tuple[LiveRule, list[str]]] = []
+    for ident, lr in by_id.items():
+        drop = punch.get(ident) or set()
+        if not drop:
+            continue
+        _lp, lports, _wild = live_port_atoms(lr.signature)
+        if not (set(lports) & drop):
+            continue
+        remaining = [a for a in lports if a not in drop]
+        out.append((lr, remaining))
+    return out
+
+
 def live_scope_key(sig: str) -> tuple:
     """Match leftover compacted rules only in the same proto/verdict/addr/iface."""
     proto, _ports, _wild = live_port_atoms(sig)
