@@ -40,19 +40,27 @@ Global flags (*-v*, *-q*, *-h*, *--version*) may appear before or after _CMD_.
 
 === load
 
-Reconcile _FILE_ with the live ruleset.
+Reconcile _FILE_ with the live ruleset. By default each config statement
+is one nft rule so later edits still *unload* cleanly. *-c, --compact*
+packs matching allow/deny statements into nft sets.
 
 === unload
 
-Delete live rules owned by _FILE_.
+Remove a live rule only when the whole statement still matches. *-f, --force*
+splits a leftover compacted rule and removes as many atoms as possible
+(source file shrunk or changed).
 
 === status
 
 Print drift (missing / extra / conflicting) without changing anything.
 
-=== check / show
+=== check
 
-Parse and print resolved rules.
+Parse and print resolved nft rules.
+
+=== show
+
+Print each statement with a width-8 status: *on*, *N/M*, *---*, *xxx*.
 
 === daemon
 
@@ -71,10 +79,16 @@ artifact; live apply still uses *load*/*daemon*).
 
 == Conflict policy
 
+Applies to *load*, *daemon*, and *convert*:
+
 * default — abort on conflict with foreign or mismatched rules
-* *-f* / *--force* — overwrite or remove anyway
+* *-f* / *--force* — overwrite conflicting live rules (*load*)
 * *-n* / *--no-clobber* — skip conflicting changes
 * *--dry-run* — print actions only
+
+*load -c/--compact* packs matching statements into nft sets.
+*unload -f/--force* splits a leftover compacted rule and removes matching
+atoms (unload does not use the load conflict policy).
 
 == Configuration language
 
@@ -88,7 +102,9 @@ end-of-scope keyword.
 * Lines are split on whitespace into tokens. Leading and trailing whitespace
   is ignored. Empty lines are ignored.
 * `+#+` starts a comment that runs to end of line, unless the `+#+` sits inside
-  single quotes (`'...'`) or double quotes (`"..."`).
+  single quotes (`'...'`) or double quotes (`"..."`). A comment on the same
+  line as a NAT or filter statement is copied into the nft rule `comment`
+  after the `nftconf:owner:key` ownership tag.
 * The first token is the directive name. Directive names and most keywords
   (`tcp`, `on`, `with`, family names, priority names) are matched
   case-insensitively. Table names, interface names, and addresses are kept

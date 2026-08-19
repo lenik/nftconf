@@ -26,16 +26,21 @@ NAT 作用在 prerouting/output/postrouting，*不会* 自动开放 *INPUT*。
 == 命令
 
 *load* _文件_::
-  将 _文件_ 与活动规则集对账。
+  将 _文件_ 与活动规则集对账。默认一条 statement 对应一条 nft 规则。
+  *-c, --compact* 将匹配的 allow/deny 打包进 nft 集合（旧行为）。
 
 *unload* _文件_::
-  删除由 _文件_ 拥有的活动规则。
+  仅在整条 statement 完全匹配时移除活动规则。*-f, --force*
+  在整体不匹配时拆散残余的打包规则，尽可能多地移除原子。
 
 *status* _文件_::
   显示期望与活动规则之间的差异。
 
-*check* / *show* _文件_::
-  解析并打印规则（不应用）。
+*check* _文件_::
+  解析并打印展开后的 nft 规则。
+
+*show* _文件_::
+  每条 statement 的状态（*on*、*N/M*、*---*、*xxx*）。
 
 *daemon* _文件_::
   监视 _文件_（及 include），变更时重新加载。
@@ -66,19 +71,25 @@ NAT 作用在 prerouting/output/postrouting，*不会* 自动开放 *INPUT*。
 
 == 冲突策略
 
-适用于 *load*、*unload*、*daemon*、*convert*：
+适用于 *load*、*daemon*、*convert*：
 
 （默认）::
   与现有 nft 设置冲突则中止。
 
 *-f, --force*::
-  强制覆盖（load）或删除（unload）。
+  覆盖冲突的活动规则（*load*）。
 
 *-n, --no-clobber*::
   跳过冲突变更。
 
 *--dry-run*::
   只显示动作，不应用。
+
+*load -c/--compact*::
+  将匹配的 statement 打包进 nft 集合。
+
+*unload -f/--force*::
+  拆散残余的打包规则并移除匹配的原子。
 
 == 配置语言
 

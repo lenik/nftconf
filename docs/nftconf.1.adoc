@@ -29,16 +29,24 @@ NAT rules are applied on prerouting/output/postrouting hooks and *do not* open
 == Commands
 
 *load* _FILE_::
-  Reconcile _FILE_ against the live ruleset.
+  Reconcile _FILE_ against the live ruleset. One config statement becomes
+  one nft rule. *-c, --compact* packs matching allow/deny statements into
+  nft sets (previous behaviour).
 
 *unload* _FILE_::
-  Remove live rules owned by _FILE_.
+  Remove live rules that fully match a current statement. *-f, --force*
+  splits a leftover compacted rule and removes as many atoms as possible
+  when the whole statement no longer matches (source shrunk or edited).
 
 *status* _FILE_::
   Show drift between desired and live rules.
 
-*check* / *show* _FILE_::
-  Parse and print resolved rules (no apply).
+*check* _FILE_::
+  Parse and print resolved nft rules (no apply).
+
+*show* _FILE_::
+  Print each statement with a width-8 status column: *on* (fully live),
+  *N/M* (partial), *---* (not loaded), *xxx* (syntax error).
 
 *daemon* _FILE_::
   Watch _FILE_ (and includes) with inotify; reload on change.
@@ -69,13 +77,13 @@ NAT rules are applied on prerouting/output/postrouting hooks and *do not* open
 
 == Conflict policy
 
-Applies to *load*, *unload*, *daemon*, and *convert*:
+Applies to *load*, *daemon*, and *convert*:
 
 (default)::
   Abort if existing nft settings conflict.
 
 *-f, --force*::
-  Overwrite (load) or remove owned rules anyway (unload).
+  Overwrite conflicting live rules (*load*).
 
 *-n, --no-clobber*::
   Skip conflicting changes; leave existing settings alone.
@@ -83,10 +91,18 @@ Applies to *load*, *unload*, *daemon*, and *convert*:
 *--dry-run*::
   Show actions without applying.
 
+*load -c/--compact*::
+  Pack matching statements into nft sets.
+
+*unload -f/--force*::
+  Split leftover compacted rules and remove matching atoms.
+
 == Configuration language
 
 A config file is one directive per line. Blank lines are ignored.
-*#* starts a comment (unless inside quotes). The first token is the
+*#* starts a comment (unless inside quotes). A same-line comment on a
+NAT or filter statement is copied into the nft rule comment after the
+ownership tag. The first token is the
 directive; names and keywords are case-insensitive. Context applies to
 every following rule until the next context directive. There is no block
 syntax.

@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nftconf 0.5.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-18 22:59+0800\n"
+"POT-Creation-Date: 2026-08-19 10:24+0800\n"
 "PO-Revision-Date: 2026-08-01 18:50+0800\n"
 "Last-Translator: Lenik <nftconf@bodz.net>\n"
 "Language-Team: zh_CN\n"
@@ -12,17 +12,22 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: nftconf_app/cli.py:52
+#: nftconf_app/cli.py:53
 msgid "Declarative nftables config (live reconcile)"
 msgstr "声明式 nftables 配置（实时对账）"
 
-#: nftconf_app/cli.py:55
-#, fuzzy
+#: nftconf_app/cli.py:56
 msgid ""
-"Conflict policy (load / unload):\n"
+"Conflict policy (load / daemon):\n"
 "  default          abort if existing nft settings conflict\n"
-"  -f, --force      overwrite (load) or remove owned rules anyway (unload)\n"
+"  -f, --force      overwrite conflicting live rules (load)\n"
 "  -n, --no-clobber skip conflicting changes; leave existing settings alone\n"
+"\n"
+"load -c/--compact packs matching allow/deny statements into nft sets.\n"
+"unload removes a statement only when the whole live rule matches;\n"
+"unload -f/--force splits a leftover compacted rule and removes as many\n"
+"atoms as possible.\n"
+"show prints each statement with status: on, N/M, ---, xxx.\n"
 "\n"
 "Global options (before or after CMD):\n"
 "  -v, --verbose    DEBUG logging\n"
@@ -41,10 +46,15 @@ msgid ""
 "  (80 443 1080 8000-8080). convert writes nftables.d/*.nft\n"
 "  (defines + port sets).\n"
 msgstr ""
-"冲突策略（load / unload）：\n"
+"冲突策略（load / daemon）：\n"
 "  默认              与现有 nft 设置冲突则中止\n"
-"  -f, --force       强制覆盖（load）或删除（unload）\n"
+"  -f, --force       覆盖冲突的活动规则（load）\n"
 "  -n, --no-clobber  跳过冲突变更，保留现有设置\n"
+"\n"
+"load -c/--compact 将匹配的 allow/deny statement 打包进 nft 集合。\n"
+"unload 仅在整条活动规则完全匹配时移除 statement；\n"
+"unload -f/--force 拆散残余的打包规则，尽可能多地移除原子。\n"
+"show 为每条 statement 打印状态：on、N/M、---、xxx。\n"
 "\n"
 "全局选项（可在 CMD 前或后）：\n"
 "  -v, --verbose     DEBUG 日志\n"
@@ -54,65 +64,75 @@ msgstr ""
 "\n"
 "说明：\n"
 "  NAT（nat/dnat/redirect）在 prerouting/forward 处理，不会开放 INPUT。\n"
-"  需要本机投递的端口请显式 whitelist/accept（如 SSH）。\n"
-"  开启 shield 时，whitelist 规则加入防护白名单。\n"
+"  需要本机投递的端口请用 allow incoming / whitelist（如 SSH）。\n"
+"  deny incoming 丢弃端口；allow outgoing ip CIDR [tcp/udp PORT...] 过滤 OUTPUT\n"
+"  （省略端口则匹配该 CIDR 的全部流量）。\n"
+"  单个端口优先于区间；同等具体度时 allow 优先于 deny。\n"
 "  dest address / dest interface 为 nat … to … 提供默认目标。\n"
 "  TCP/UDP 匹配可为端口、区间（8000-8080）或列表（80 443 1080 8000-8080）。\n"
 "  convert 写出汇总的 nftables.d/*.nft（宏定义与端口集合）。\n"
 
-#: nftconf_app/cli.py:87
-msgid "force overwrite/remove on conflict"
-msgstr "冲突时强制覆盖/删除"
+#: nftconf_app/cli.py:94
+msgid "force overwrite on conflict"
+msgstr "冲突时强制覆盖"
 
-#: nftconf_app/cli.py:93
+#: nftconf_app/cli.py:100
 msgid "skip conflicting changes"
 msgstr "跳过冲突的变更"
 
-#: nftconf_app/cli.py:98
+#: nftconf_app/cli.py:105 nftconf_app/cli.py:129
 msgid "show actions without applying"
 msgstr "显示将执行的操作但不应用"
 
-#: nftconf_app/cli.py:101
+#: nftconf_app/cli.py:108
 msgid "reconcile FILE against live nft"
 msgstr "将 FILE 与活动 nft 规则对账"
 
-#: nftconf_app/cli.py:105
-msgid "remove live rules owned by FILE"
-msgstr "删除由 FILE 拥有的活动规则"
+#: nftconf_app/cli.py:114 nftconf_app/cli.py:157
+msgid "pack matching statements into nft sets"
+msgstr "将匹配的 statement 打包进 nft 集合"
 
-#: nftconf_app/cli.py:109
+#: nftconf_app/cli.py:118
+msgid "remove live rules for FILE statements"
+msgstr "移除 FILE 中 statement 对应的活动规则"
+
+#: nftconf_app/cli.py:124
+msgid "split leftover compacted rules and remove matching atoms"
+msgstr "拆散残余打包规则并移除匹配的原子"
+
+#: nftconf_app/cli.py:132
 msgid "show drift vs live nft"
 msgstr "显示与活动 nft 的差异"
 
-#: nftconf_app/cli.py:112
-msgid "parse and print resolved rules"
-msgstr "解析并打印解析后的规则"
+#: nftconf_app/cli.py:135
+msgid "parse and print resolved nft rules"
+msgstr "解析并打印展开后的 nft 规则"
 
-#: nftconf_app/cli.py:115
-msgid "alias for check"
-msgstr "check 的别名"
+#: nftconf_app/cli.py:140
+msgid "print each statement with live status"
+msgstr "打印每条 statement 及其活动状态"
 
-#: nftconf_app/cli.py:118
+#: nftconf_app/cli.py:144
 msgid "watch FILE; reconcile on change"
 msgstr "监视 FILE；变更时对账"
 
-#: nftconf_app/cli.py:124 nftconf_app/cli.py:134
+#: nftconf_app/cli.py:150 nftconf_app/cli.py:166
 #, python-format
 msgid "pidfile path (default: %(default)s)"
 msgstr "pidfile 路径（默认：%(default)s）"
 
-#: nftconf_app/cli.py:128
+#: nftconf_app/cli.py:160
 msgid "stop daemon"
 msgstr "停止守护进程"
 
-#: nftconf_app/cli.py:139
+#: nftconf_app/cli.py:171
 msgid "convert nftconf FILE(s) to nftables.d/*.nft"
 msgstr "将 nftconf FILE 转换为 nftables.d/*.nft"
 
-#: nftconf_app/cli.py:146
+#: nftconf_app/cli.py:178
 msgid "output file (single input only); default nftables.d/<stem>.nft"
 msgstr "输出文件（仅单个输入）；默认 nftables.d/<stem>.nft"
 
-#: nftconf_app/cli.py:150
+#: nftconf_app/cli.py:182
 msgid "show this help"
 msgstr "显示此帮助"

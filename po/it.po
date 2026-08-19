@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: nftconf 0.5.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-18 22:59+0800\n"
+"POT-Creation-Date: 2026-08-19 10:24+0800\n"
 "PO-Revision-Date: 2026-08-01 18:50+0800\n"
 "Last-Translator: Lenik <nftconf@bodz.net>\n"
 "Language-Team: it\n"
@@ -12,17 +12,23 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: nftconf_app/cli.py:52
+#: nftconf_app/cli.py:53
 msgid "Declarative nftables config (live reconcile)"
 msgstr "Configurazione nftables dichiarativa (riconciliazione live)"
 
-#: nftconf_app/cli.py:55
+#: nftconf_app/cli.py:56
 #, fuzzy
 msgid ""
-"Conflict policy (load / unload):\n"
+"Conflict policy (load / daemon):\n"
 "  default          abort if existing nft settings conflict\n"
-"  -f, --force      overwrite (load) or remove owned rules anyway (unload)\n"
+"  -f, --force      overwrite conflicting live rules (load)\n"
 "  -n, --no-clobber skip conflicting changes; leave existing settings alone\n"
+"\n"
+"load -c/--compact packs matching allow/deny statements into nft sets.\n"
+"unload removes a statement only when the whole live rule matches;\n"
+"unload -f/--force splits a leftover compacted rule and removes as many\n"
+"atoms as possible.\n"
+"show prints each statement with status: on, N/M, ---, xxx.\n"
 "\n"
 "Global options (before or after CMD):\n"
 "  -v, --verbose    DEBUG logging\n"
@@ -60,59 +66,70 @@ msgstr ""
 "  TCP/UDP accetta una porta, un intervallo (8000-8080) o un elenco\n"
 "  (80 443 1080 8000-8080). convert scrive nftables.d/*.nft consolidati.\n"
 
-#: nftconf_app/cli.py:87
-msgid "force overwrite/remove on conflict"
+#: nftconf_app/cli.py:94
+#, fuzzy
+msgid "force overwrite on conflict"
 msgstr "forza sovrascrittura/rimozione in caso di conflitto"
 
-#: nftconf_app/cli.py:93
+#: nftconf_app/cli.py:100
 msgid "skip conflicting changes"
 msgstr "salta le modifiche in conflitto"
 
-#: nftconf_app/cli.py:98
+#: nftconf_app/cli.py:105 nftconf_app/cli.py:129
 msgid "show actions without applying"
 msgstr "mostra le azioni senza applicarle"
 
-#: nftconf_app/cli.py:101
+#: nftconf_app/cli.py:108
 msgid "reconcile FILE against live nft"
 msgstr "riconcilia FILE con nft live"
 
-#: nftconf_app/cli.py:105
-msgid "remove live rules owned by FILE"
+#: nftconf_app/cli.py:114 nftconf_app/cli.py:157
+msgid "pack matching statements into nft sets"
+msgstr ""
+
+#: nftconf_app/cli.py:118
+#, fuzzy
+msgid "remove live rules for FILE statements"
 msgstr "rimuovi le regole live di proprietà di FILE"
 
-#: nftconf_app/cli.py:109
+#: nftconf_app/cli.py:124
+msgid "split leftover compacted rules and remove matching atoms"
+msgstr ""
+
+#: nftconf_app/cli.py:132
 msgid "show drift vs live nft"
 msgstr "mostra lo scostamento rispetto a nft live"
 
-#: nftconf_app/cli.py:112
-msgid "parse and print resolved rules"
+#: nftconf_app/cli.py:135
+#, fuzzy
+msgid "parse and print resolved nft rules"
 msgstr "analizza e stampa le regole risolte"
 
-#: nftconf_app/cli.py:115
-msgid "alias for check"
-msgstr "alias di check"
+#: nftconf_app/cli.py:140
+msgid "print each statement with live status"
+msgstr ""
 
-#: nftconf_app/cli.py:118
+#: nftconf_app/cli.py:144
 msgid "watch FILE; reconcile on change"
 msgstr "monitora FILE; riconcilia al cambiamento"
 
-#: nftconf_app/cli.py:124 nftconf_app/cli.py:134
+#: nftconf_app/cli.py:150 nftconf_app/cli.py:166
 #, python-format
 msgid "pidfile path (default: %(default)s)"
 msgstr "percorso pidfile (predefinito: %(default)s)"
 
-#: nftconf_app/cli.py:128
+#: nftconf_app/cli.py:160
 msgid "stop daemon"
 msgstr "ferma il demone"
 
-#: nftconf_app/cli.py:139
+#: nftconf_app/cli.py:171
 msgid "convert nftconf FILE(s) to nftables.d/*.nft"
 msgstr "converti FILE nftconf in nftables.d/*.nft"
 
-#: nftconf_app/cli.py:146
+#: nftconf_app/cli.py:178
 msgid "output file (single input only); default nftables.d/<stem>.nft"
 msgstr "file di output (un solo input); predefinito nftables.d/<stem>.nft"
 
-#: nftconf_app/cli.py:150
+#: nftconf_app/cli.py:182
 msgid "show this help"
 msgstr "mostra questo aiuto"

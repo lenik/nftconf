@@ -29,16 +29,23 @@ Les ports livrés à l'hôte nécessitent un *whitelist*/*accept* explicite
 == Commandes
 
 *load* _FICHIER_::
-  Réconcilie _FICHIER_ avec le jeu live.
+  Réconcilie _FICHIER_ avec le jeu live. Une instruction devient une
+  règle nft. *-c, --compact* regroupe les allow/deny correspondants
+  en ensembles nft.
 
 *unload* _FICHIER_::
-  Supprime les règles live appartenant à _FICHIER_.
+  Retire une règle live seulement si l'instruction correspond entièrement.
+  *-f, --force* scinde une règle compactée restante et retire autant
+  d'atomes que possible.
 
 *status* _FICHIER_::
   Affiche l'écart entre désiré et live.
 
-*check* / *show* _FICHIER_::
-  Analyse et affiche les règles (sans appliquer).
+*check* _FICHIER_::
+  Parse and print resolved nft rules.
+
+*show* _FICHIER_::
+  État par instruction (*on*, *N/M*, *---*, *xxx*).
 
 *daemon* _FICHIER_::
   Surveille _FICHIER_ (et includes) et recharge aux changements.
@@ -73,13 +80,19 @@ Les ports livrés à l'hôte nécessitent un *whitelist*/*accept* explicite
   Abandon en cas de conflit avec les réglages nft existants.
 
 *-f, --force*::
-  Écraser (load) ou retirer quand même (unload).
+  Écraser les règles live en conflit (*load*).
 
 *-n, --no-clobber*::
   Ignorer les changements en conflit.
 
 *--dry-run*::
   Afficher sans appliquer.
+
+*load -c/--compact*::
+  Regrouper les instructions correspondantes en ensembles nft.
+
+*unload -f/--force*::
+  Scinder une règle compactée restante et retirer les atomes correspondants.
 
 == Langage de config
 

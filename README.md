@@ -6,7 +6,7 @@ stable comment tag.
 
 ## Features
 
-- **load / unload / status / check** — live reconcile with conflict policy
+- **load / unload / status / check / show** — live reconcile; `show` prints per-statement status (`on` / `N/M` / `---` / `xxx`)
 - **daemon** — inotify reload + **pidfile** (single instance)
 - **NAT** (`nat`/`dnat`/`snat`/`masquerade`/`redirect`) without opening INPUT
 - **allow / deny** — incoming INPUT and outgoing OUTPUT policy

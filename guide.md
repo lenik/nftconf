@@ -24,22 +24,27 @@ PYTHONPATH=. python3 -m nftconf_app check demo/nftconf.conf
 
 | Command | Purpose |
 |---------|---------|
-| `load FILE` | Reconcile config → live nft |
-| `unload FILE` | Remove owned live rules |
+| `load FILE` | Reconcile config → live nft (`-c` packs statements into sets) |
+| `unload FILE` | Remove exact matching statements (`-f` splits leftovers) |
 | `status FILE` | Show drift |
-| `check` / `show FILE` | Parse/print rules (no apply) |
+| `check FILE` | Parse/print resolved nft rules |
+| `show FILE` | Per-statement status: `on` / `N/M` / `---` / `xxx` |
 | `daemon FILE` | Watch + reload; pidfile single-instance |
 | `stop` | Stop daemon via `--pid` |
 | `convert FILE…` | Write `nftables.d/*.nft` |
 
 Global flags (anywhere): `-v` / `--verbose`, `-q` / `--quiet`, `-h`, `--version`.
 
-Conflict policy on load/unload/daemon/convert:
+Conflict policy on load/daemon/convert:
 
 - default — abort on conflict
-- `-f` / `--force` — overwrite / remove anyway
+- `-f` / `--force` — overwrite (load)
 - `-n` / `--no-clobber` — skip conflicts
 - `--dry-run` — print only
+
+`load -c/--compact` packs matching allow/deny lines into nft sets.
+`unload -f/--force` splits a leftover compacted rule when the statement
+no longer matches as a whole.
 
 ## Config language
 
@@ -51,6 +56,8 @@ There are no braces and no explicit end-of-scope.
 
 - Tokens are whitespace-separated. Blank lines are ignored.
 - `#` starts a comment to end of line, unless it is inside `'...'` or `"..."`.
+  On the same line as a NAT/filter statement, that text is copied into the
+  nft rule comment after the `nftconf:owner:key` tag.
 - The first token is the directive. Directive names and keywords (`tcp`,
   `on`, `with`, families, priority names) are case-insensitive. Table names,
   interface names, and addresses are kept as written.

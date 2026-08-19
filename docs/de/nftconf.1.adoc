@@ -28,16 +28,22 @@ Ports für die lokale Zustellung brauchen explizites *whitelist*/*accept*
 == Befehle
 
 *load* _DATEI_::
-  Gleicht _DATEI_ mit dem Live-Regelwerk ab.
+  Gleicht _DATEI_ mit dem Live-Regelwerk ab. Eine Anweisung wird eine
+  nft-Regel. *-c, --compact* fasst passende allow/deny in nft-Sets zusammen.
 
 *unload* _DATEI_::
-  Entfernt von _DATEI_ besessene Live-Regeln.
+  Entfernt eine Live-Regel nur bei vollständiger Übereinstimmung.
+  *-f, --force* zerlegt eine übrig gebliebene kompakte Regel und entfernt
+  so viele Atome wie möglich.
 
 *status* _DATEI_::
   Zeigt Abweichungen zwischen Soll und Ist.
 
-*check* / *show* _DATEI_::
-  Parst und zeigt Regeln (ohne Anwenden).
+*check* _DATEI_::
+  Parse and print resolved nft rules.
+
+*show* _DATEI_::
+  Status je Anweisung (*on*, *N/M*, *---*, *xxx*).
 
 *daemon* _DATEI_::
   Überwacht _DATEI_ (und Includes) und lädt bei Änderungen neu.
@@ -72,13 +78,19 @@ Ports für die lokale Zustellung brauchen explizites *whitelist*/*accept*
   Abbruch bei Konflikt mit bestehenden nft-Einstellungen.
 
 *-f, --force*::
-  Überschreiben (load) bzw. trotzdem entfernen (unload).
+  Konfliktierende Live-Regeln überschreiben (*load*).
 
 *-n, --no-clobber*::
   Konfliktierende Änderungen überspringen.
 
 *--dry-run*::
   Aktionen nur anzeigen.
+
+*load -c/--compact*::
+  Passende Anweisungen in nft-Sets zusammenfassen.
+
+*unload -f/--force*::
+  Übrig gebliebene kompakte Regeln zerlegen und passende Atome entfernen.
 
 == Konfigurationssprache
 

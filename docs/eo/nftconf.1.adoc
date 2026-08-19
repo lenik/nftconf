@@ -26,16 +26,22 @@ Gastigantaj pordoj bezonas eksplicitan *whitelist*/*accept*.
 == Komandoj
 
 *load* _FILE_::
-  Reconcile _FILE_ against the live ruleset.
+  Reconcile _FILE_ against the live ruleset. One statement becomes one
+  nft rule. *-c, --compact* packs matching allow/deny into nft sets.
 
 *unload* _FILE_::
-  Remove live rules owned by _FILE_.
+  Remove a live rule only when the whole statement matches.
+  *-f, --force* splits a leftover compacted rule and removes as many
+  atoms as possible.
 
 *status* _FILE_::
   Show drift between desired and live rules.
 
-*check* / *show* _FILE_::
-  Parse and print resolved rules (no apply).
+*check* _FILE_::
+  Parse and print resolved nft rules.
+
+*show* _FILE_::
+  Per-statement status (*on*, *N/M*, *---*, *xxx*).
 
 *daemon* _FILE_::
   Watch _FILE_ (and includes); reload on change.
@@ -70,13 +76,19 @@ Gastigantaj pordoj bezonas eksplicitan *whitelist*/*accept*.
   Abort if existing nft settings conflict.
 
 *-f, --force*::
-  Overwrite (load) or remove owned rules anyway (unload).
+  Overwrite conflicting live rules (*load*).
 
 *-n, --no-clobber*::
   Skip conflicting changes.
 
 *--dry-run*::
   Show actions without applying.
+
+*load -c/--compact*::
+  Pack matching statements into nft sets.
+
+*unload -f/--force*::
+  Split leftover compacted rules and remove matching atoms.
 
 == Agorda lingvo
 

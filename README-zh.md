@@ -5,7 +5,7 @@
 
 ## 功能
 
-- **load / unload / status / check** — 实时对账与冲突策略
+- **load / unload / status / check / show** — 实时对账；`show` 按 statement 显示状态（`on` / `N/M` / `---` / `xxx`）
 - **daemon** — inotify 热加载 + **pidfile**（单实例）
 - **NAT**（`nat`/`dnat`/`snat`/`masquerade`/`redirect`），且不自动开放 INPUT
 - **allow / deny** — 入站 INPUT 与出站 OUTPUT 策略
