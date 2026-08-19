@@ -48,7 +48,8 @@ packs matching allow/deny statements into nft sets.
 
 Remove a live rule only when the whole statement still matches. *-f, --force*
 splits a leftover compacted rule and removes as many atoms as possible
-(source file shrunk or changed).
+(source file shrunk or changed). Empty nftconf chains left behind are
+deleted (and the table if it has no chains left).
 
 === status
 

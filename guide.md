@@ -25,7 +25,7 @@ PYTHONPATH=. python3 -m nftconf_app check demo/nftconf.conf
 | Command | Purpose |
 |---------|---------|
 | `load FILE` | Reconcile config → live nft (`-c` packs statements into sets) |
-| `unload FILE` | Remove exact matching statements (`-f` splits leftovers) |
+| `unload FILE` | Remove exact matching statements (`-f` splits leftovers; empty chains go) |
 | `status FILE` | Show drift |
 | `check FILE` | Parse/print resolved nft rules |
 | `show FILE` | Per-statement status: `on` / `N/M` / `---` / `xxx` |

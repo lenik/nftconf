@@ -12,6 +12,7 @@ from nftconf_app.nft import (
     _normalize_sig,
     _parse_desired_stmt,
     ensure_needs,
+    prune_empty_nftconf_chains,
     scan_all_rules,
     scan_live,
 )
@@ -231,4 +232,5 @@ def reconcile(
 
     if skipped_keys:
         log.info("skipped %d conflicting stmt(s)", len(skipped_keys))
+    prune_empty_nftconf_chains(cfg.tables, dry_run=dry_run)
     return added, removed

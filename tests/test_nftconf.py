@@ -443,6 +443,32 @@ class ForceUnloadTests(unittest.TestCase):
         self.assertEqual(plan_force_split(want, [lr]), [])
 
 
+class EmptyChainTests(unittest.TestCase):
+    def test_empty_nc_in_counts_as_zero_rules(self) -> None:
+        from nftconf_app.nft import chain_rule_counts, is_nftconf_chain
+
+        listing = """
+table ip nftconf {
+	chain nc_in_907e7f94 {
+		type filter hook input priority filter; policy accept;
+	}
+	chain nc_in_aabbccdd {
+		type filter hook input priority filter; policy accept;
+		tcp dport 22 accept comment "nftconf:abcabcabcabc:defdefdefdef1234" # handle 1
+	}
+	chain user_chain {
+		type filter hook input priority filter; policy accept;
+	}
+}
+"""
+        counts = chain_rule_counts(listing)
+        self.assertEqual(counts["nc_in_907e7f94"], 0)
+        self.assertEqual(counts["nc_in_aabbccdd"], 1)
+        self.assertEqual(counts["user_chain"], 0)
+        self.assertTrue(is_nftconf_chain("nc_in_907e7f94"))
+        self.assertFalse(is_nftconf_chain("user_chain"))
+
+
 class InlineCommentTests(unittest.TestCase):
     def test_same_line_hash_goes_into_nft_comment(self) -> None:
         cfg = _parse_text(

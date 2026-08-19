@@ -14,6 +14,9 @@ from nftconf_app.parse import (
     _shield_names,
 )
 
+_NC_CHAIN_RE = re.compile(r"^nc_(in|of|sh|pre|out|post)_")
+_CHAIN_HEADER = re.compile(r"\s*chain\s+(\S+)")
+
 
 def _nft(*args: str, check: bool = True) -> str:
     try:
@@ -259,4 +262,61 @@ def _delete_lives(lives: list[LiveRule], *, dry_run: bool) -> int:
                 check=False,
             )
         n += 1
+    return n
+
+
+def chain_rule_counts(nft_list: str) -> dict[str, int]:
+    """Map chain name → number of rules (type/policy lines do not count)."""
+    counts: dict[str, int] = {}
+    current: Optional[str] = None
+    for line in nft_list.splitlines():
+        m = _CHAIN_HEADER.match(line)
+        if m:
+            current = m.group(1)
+            counts.setdefault(current, 0)
+            continue
+        if current is None:
+            continue
+        if _HANDLE_LINE.search(line) and not re.match(r"\s*type\s+", line):
+            counts[current] += 1
+    return counts
+
+
+def is_nftconf_chain(name: str) -> bool:
+    return bool(_NC_CHAIN_RE.match(name))
+
+
+def prune_empty_nftconf_chains(
+    tables: Iterable[tuple[str, str]],
+    *,
+    dry_run: bool = False,
+) -> int:
+    """Delete empty nftconf chains (nc_in_/nc_of_/nc_sh_/nat). Drop empty tables."""
+    from nftconf_app.log import log
+
+    n = 0
+    seen: set[tuple[str, str]] = set()
+    for family, table in tables:
+        if (family, table) in seen:
+            continue
+        seen.add((family, table))
+        listing = _nft("-a", "list", "table", family, table, check=False)
+        if not listing.strip():
+            continue
+        counts = chain_rule_counts(listing)
+        empty = [c for c, k in counts.items() if k == 0 and is_nftconf_chain(c)]
+        for chain in empty:
+            if dry_run:
+                log.info("would delete empty chain %s %s %s", family, table, chain)
+            else:
+                log.debug("delete empty chain %s %s %s", family, table, chain)
+                _nft("delete", "chain", family, table, chain, check=False)
+            n += 1
+        remain = [c for c, k in counts.items() if not (k == 0 and is_nftconf_chain(c))]
+        if empty and not remain:
+            if dry_run:
+                log.info("would delete empty table %s %s", family, table)
+            else:
+                log.debug("delete empty table %s %s", family, table)
+                _nft("delete", "table", family, table, check=False)
     return n

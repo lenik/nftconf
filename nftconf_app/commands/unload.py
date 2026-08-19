@@ -11,6 +11,7 @@ from nftconf_app.nft import (
     _delete_lives,
     _nft_script,
     _parse_desired_stmt,
+    prune_empty_nftconf_chains,
     scan_all_rules,
     scan_live,
 )
@@ -42,6 +43,11 @@ def cmd_unload(
     to_delete = list(exact)
     add_script: list[str] = []
     skip_keys = {lr.key for lr in exact if lr.key}
+
+    tables = set(cfg.tables)
+    for dr in desired.values():
+        family, table, _chain, _body = _parse_desired_stmt(dr.stmt)
+        tables.add((family, table))
 
     if force and unmatched:
         # Compact leftovers may be owned by a parent include file, and may
@@ -78,17 +84,24 @@ def cmd_unload(
                     new_sig,
                 )
 
-    if not to_delete and not add_script:
-        log.info("unload complete (-0 stmts; owner=%s)", owner)
-        return 0
+    for lr in to_delete:
+        tables.add((lr.family, lr.table))
 
-    removed = _delete_lives(to_delete, dry_run=dry_run)
-    if add_script:
-        if dry_run:
-            for s in add_script:
-                log.info("would: %s", s)
-        else:
-            _nft_script("\n".join(add_script) + "\n")
+    removed = 0
+    if to_delete or add_script:
+        removed = _delete_lives(to_delete, dry_run=dry_run)
+        if add_script:
+            if dry_run:
+                for s in add_script:
+                    log.info("would: %s", s)
+            else:
+                _nft_script("\n".join(add_script) + "\n")
 
-    log.info("unload complete (-%d stmts; owner=%s)", removed, owner)
+    pruned = prune_empty_nftconf_chains(tables, dry_run=dry_run)
+    log.info(
+        "unload complete (-%d stmts, -%d empty chain(s); owner=%s)",
+        removed,
+        pruned,
+        owner,
+    )
     return 0

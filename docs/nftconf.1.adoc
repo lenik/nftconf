@@ -37,6 +37,7 @@ NAT rules are applied on prerouting/output/postrouting hooks and *do not* open
   Remove live rules that fully match a current statement. *-f, --force*
   splits a leftover compacted rule and removes as many atoms as possible
   when the whole statement no longer matches (source shrunk or edited).
+  Empty nftconf chains (and an empty table) are deleted afterwards.
 
 *status* _FILE_::
   Show drift between desired and live rules.
