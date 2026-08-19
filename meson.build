@@ -2,7 +2,7 @@ project(
     'nftconf',
     version: run_command(
         'sh',
-        '-c', 'v=$(git describe --tags --always --dirty 2>/dev/null || true); v=${v#v}; [ -n "$v" ] && printf "%s" "$v" || printf "0.0.0"',
+        '-c', 'v=$(git describe --tags --always --dirty 2>/dev/null || true); v=${v#v}; [ -n "$v" ] && printf "%s" "$v" || printf "1.2.0"',
         check: false,
     ).stdout().strip(),
     license: 'AGPL-3.0-or-later',

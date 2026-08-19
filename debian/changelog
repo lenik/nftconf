@@ -1,3 +1,18 @@
+nftconf (1.2.0) testing; urgency=medium
+
+  * Refactor filter policy to allow/deny with incoming and outgoing:
+    allow incoming tcp PORT..., deny incoming udp PORT...,
+    allow outgoing ip CIDR [tcp/udp PORT...].
+  * Omit the port part on outgoing to match all traffic to that CIDR.
+  * Resolve overlaps by specificity: a single port beats a range; at the
+    same specificity, allow beats deny (nftables first-match order).
+  * whitelist/blacklist remain aliases for allow/deny incoming.
+  * Add OUTPUT filter chains for outgoing policy.
+  * Docker lab: function-cover tests for allow/deny incoming and outgoing
+    (port vs range, CIDR deny, longer prefix) plus NAT/shield/daemon/pidfile.
+
+ -- Lenik (谢继雷) <lenik@bodz.net>  Tue, 18 Aug 2026 22:51:00 +0800
+
 nftconf (1.1.0) testing; urgency=medium
 
   * TCP/UDP (also sctp/dccp) port specs accept a port, an inclusive range,

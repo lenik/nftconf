@@ -7,7 +7,12 @@ import subprocess
 from typing import Iterable, Optional
 
 from nftconf_app.model import LiveRule, _ADD_RULE_RE, _COMMENT_RE, _HANDLE_LINE
-from nftconf_app.parse import _filter_chain, _nat_chains, _shield_names
+from nftconf_app.parse import (
+    _filter_chain,
+    _nat_chains,
+    _output_filter_chain,
+    _shield_names,
+)
 
 
 def _nft(*args: str, check: bool = True) -> str:
@@ -104,6 +109,24 @@ def ensure_needs(needs: Iterable[tuple]) -> None:
                 "filter",
                 "hook",
                 "input",
+                "priority",
+                str(priority),
+                ";",
+                "policy",
+                "accept",
+                ";",
+            )
+        elif kind == "filter-out":
+            priority = n[3]
+            name = _output_filter_chain(family, table, priority)
+            _add_chain(
+                family,
+                table,
+                name,
+                "type",
+                "filter",
+                "hook",
+                "output",
                 "priority",
                 str(priority),
                 ";",

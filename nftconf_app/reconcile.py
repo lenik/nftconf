@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Optional
+
 from nftconf_app.log import log
 from nftconf_app.model import Config, ConflictError, DesiredRule, LiveRule
 from nftconf_app.nft import (
@@ -16,7 +18,7 @@ from nftconf_app.nft import (
 
 
 def _shield_ordered_keys(desired: dict[str, DesiredRule]) -> list[str]:
-    """Order shield-chain rules: ct, icmp, accepts..., drop last."""
+    """Order shield-chain rules: ct, icmp, policy (by order), drop last."""
     ct, icmp, mid, drop = [], [], [], []
     for k, r in desired.items():
         if r.kind == "shield-ct":
@@ -27,7 +29,7 @@ def _shield_ordered_keys(desired: dict[str, DesiredRule]) -> list[str]:
             drop.append(k)
         elif r.kind.startswith("shield-") and r.kind != "shield-jump":
             mid.append(k)
-    mid.sort()
+    mid.sort(key=lambda k: (desired[k].order, k))
     return ct + icmp + mid + drop
 
 
@@ -40,10 +42,12 @@ def find_load_conflicts(
     cfg: Config,
     to_add: set[str],
     desired: dict[str, DesiredRule],
+    to_remove: Optional[set[str]] = None,
 ) -> list[tuple[DesiredRule, LiveRule]]:
     """Foreign/other-owner rules with the same signature in the target chain."""
     if not to_add:
         return []
+    removing = to_remove or set()
     tables = {(r.needs[0][0], r.needs[0][1]) for r in desired.values() if r.needs}
     # also from stmt
     for k in to_add:
@@ -61,6 +65,9 @@ def find_load_conflicts(
         for lr in by_loc.get((family, table, chain, sig), []):
             # Same owner+key already present — not a conflict (shouldn't be in to_add)
             if lr.owner == cfg.owner and lr.key == key:
+                continue
+            # Owned live rule already queued for delete (shield/policy rebuild).
+            if lr.owner == cfg.owner and lr.key in removing:
                 continue
             # Our other key with identical signature — treat as conflict to force/skip
             conflicts.append((rule, lr))
@@ -103,7 +110,7 @@ def reconcile(
     to_remove = live_keys - desired_keys
     to_add = desired_keys - live_keys
 
-    # Shield chains need stable order (ct → icmp → accepts → drop).
+    # Shield chains need stable order (ct → icmp → policy → drop).
     shield_body = {
         k
         for k, r in desired.items()
@@ -115,6 +122,15 @@ def reconcile(
         to_remove |= rebuild & live_keys
         to_add |= rebuild & desired_keys
 
+    # Incoming/outgoing policy: first-match order (singles, then ranges, allow>deny).
+    for prefix, chain_pfx in (("in-", "nc_in_"), ("out-", "nc_of_")):
+        body = {k for k, r in desired.items() if r.kind.startswith(prefix)}
+        live_body = {k for k, lr in live.items() if lr.chain.startswith(chain_pfx)}
+        if (to_remove | to_add) & (body | live_body):
+            rebuild = body | live_body
+            to_remove |= rebuild & live_keys
+            to_add |= rebuild & desired_keys
+
     log.debug(
         "reconcile owner=%s desired=%d live=%d to_add=%d to_remove=%d",
         cfg.owner,
@@ -124,7 +140,7 @@ def reconcile(
         len(to_remove),
     )
 
-    conflicts = find_load_conflicts(cfg, to_add, desired)
+    conflicts = find_load_conflicts(cfg, to_add, desired, to_remove)
     skipped_keys: set[str] = set()
     if conflicts:
         for rule, lr in conflicts:
@@ -186,8 +202,21 @@ def reconcile(
             }
         )
         body = [desired[k] for k in body_keys if k in to_add]
-        other = [r for r in add_rules if not r.kind.startswith("shield-")]
-        ordered = other + jump + body
+        policy = sorted(
+            [
+                r
+                for r in add_rules
+                if r.kind.startswith(("in-", "out-"))
+            ],
+            key=lambda r: (r.order, r.key),
+        )
+        other = [
+            r
+            for r in add_rules
+            if not r.kind.startswith("shield-")
+            and not r.kind.startswith(("in-", "out-"))
+        ]
+        ordered = other + policy + jump + body
 
         stmts = [r.stmt for r in ordered]
         for s in stmts:

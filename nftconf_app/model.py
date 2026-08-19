@@ -136,6 +136,8 @@ class DesiredRule:
     needs: tuple[tuple, ...]
     source: str
     summary: str
+    # Apply order for overlapping allow/deny (lower first). NAT/infra stay 0.
+    order: int = 0
 
 
 @dataclass
@@ -172,11 +174,28 @@ class SemNat:
 
 @dataclass(frozen=True)
 class SemWhitelist:
-    """High-level whitelist/accept (for convert)."""
+    """High-level incoming allow (for convert)."""
 
     proto: str
     daddrs: tuple[str, ...]
     dports: str
+    interface: Optional[str]
+    table: str
+    family: str
+    filter_priority: int
+    shield: bool
+    source: str
+
+
+@dataclass(frozen=True)
+class SemPolicy:
+    """One allow/deny line (incoming or outgoing), compiled to nft later."""
+
+    verdict: str  # accept | drop
+    direction: str  # incoming | outgoing
+    proto: Optional[str]
+    dests: tuple[str, ...]
+    dports: str  # "" = all ports of proto, or all traffic if proto is None
     interface: Optional[str]
     table: str
     family: str
@@ -198,6 +217,7 @@ class Config:
     # High-level rules for `convert`
     sem_nat: list[SemNat] = field(default_factory=list)
     sem_wl: list[SemWhitelist] = field(default_factory=list)
+    sem_policy: list[SemPolicy] = field(default_factory=list)
 
     def by_key(self) -> dict[str, DesiredRule]:
         out: dict[str, DesiredRule] = {}
